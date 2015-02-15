@@ -647,4 +647,3 @@ class Controller( wx.App ):
         
         return result
         
-    

@@ -2,23 +2,23 @@
 
 # Convert
 
-#    Convert - Python module to convert number and data type
+#	Convert - Python module to convert number and data type
 #
-#    Copyright (C) 2002 Thomas Mangin
+#	Copyright (C) 2002 Thomas Mangin
 #
-#    This program is free software; you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License as published by
-#    the Free Software Foundation; either version 2 of the License, or
-#    (at your option) any later version.
+#	This program is free software; you can redistribute it and/or modify
+#	it under the terms of the GNU General Public License as published by
+#	the Free Software Foundation; either version 2 of the License, or
+#	(at your option) any later version.
 #
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
+#	This program is distributed in the hope that it will be useful,
+#	but WITHOUT ANY WARRANTY; without even the implied warranty of
+#	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#	GNU General Public License for more details.
 #
-#    You should have received a copy of the GNU General Public License
-#    along with this program; if not, write to the Free Software
-#    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#	You should have received a copy of the GNU General Public License
+#	along with this program; if not, write to the Free Software
+#	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 import sys
 
@@ -207,17 +207,17 @@ if __name__ == '__main__':
 	print "size_number(\"\\XFFG\" ) = ",  3, "\tgot", size_number("\\XFFG")
 
 	print "---"
-	print "index_number(\"0XF\"       ) = ",   0, "\tgot", index_number("0XF")
-	print "index_number(\"\\XF\"       ) = ",   0, "\tgot", index_number("\\XF")
+	print "index_number(\"0XF\"	   ) = ",   0, "\tgot", index_number("0XF")
+	print "index_number(\"\\XF\"	   ) = ",   0, "\tgot", index_number("\\XF")
 	print "index_number(\"FF\\FFGG\"   ) = ",  -1, "\tgot", index_number("FF\\FFGG")
-	print "index_number(\"FF\\7\"      ) = ",   2, "\tgot", index_number("FF\\7")
+	print "index_number(\"FF\\7\"	  ) = ",   2, "\tgot", index_number("FF\\7")
 	print "index_number(\"FFF\\XFFGG\" ) = ",   3, "\tgot", index_number("FFF\\XFFGG")
 	print "index_number(\"\\\\\\XFFGG\"  ) = ",   2, "\tgot", index_number("FF\\XFFGG")
 
 
-	# 0000 0001 -->     1
-	# 0001 0000 -->    16
-	# 0001 1000 -->    24
+	# 0000 0001 -->	 1
+	# 0001 0000 -->	16
+	# 0001 1000 -->	24
 	# 1000 0001 -->   129
 	# 0000 0001 1000 0000 -->   384
 	# 1000 0000 0000 0001 --> 32769
@@ -227,11 +227,11 @@ if __name__ == '__main__':
 
 
 	print "---"
-	print "little2   ","1    ",little2(chr( 1)+chr(0))
+	print "little2   ","1	",little2(chr( 1)+chr(0))
 	print "little2   ","16   ",little2(chr(16)+chr(0))
 
 	print "---"
-	print "big2","1    ",big2(chr(0)+chr(1))
+	print "big2","1	",big2(chr(0)+chr(1))
 	print "big2","16   ",big2(chr(0)+chr(16))
 
 	print "---"

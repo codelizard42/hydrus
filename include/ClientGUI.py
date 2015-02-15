@@ -1697,475 +1697,476 @@ The password is cleartext here but obscured in the entry dialog. Enter a blank p
     
     def _VacuumDatabase( self ):
         
-        text = 'This will rebuild the database, rewriting all indices and tables to be contiguous and optimising most operations. It happens automatically every few days, but you can force it here. If you have a large database, it will take a few minutes. A popup message will appear when it is done.'
-        
-        with ClientGUIDialogs.DialogYesNo( self, text ) as dlg:
-            
-            if dlg.ShowModal() == wx.ID_YES: HC.app.Write( 'vacuum' )
-            
-        
-    
-    def ClearClosedPages( self ):
-        
-        new_closed_pages = []
-        
-        now = HC.GetNow()
-        
-        timeout = 60 * 60
-        
-        for ( time_closed, index, name, page ) in self._closed_pages:
-            
-            if time_closed + timeout < now: self._DestroyPage( page )
-            else: new_closed_pages.append( ( time_closed, index, name, page ) )
-            
-        
-        old_closed_pages = self._closed_pages
-        
-        self._closed_pages = new_closed_pages
-        
-        if len( old_closed_pages ) != len( new_closed_pages ): HC.pubsub.pub( 'notify_new_undo' )
-        
-    
-    def DoFirstStart( self ):
-        
-        with ClientGUIDialogs.DialogFirstStart( self ) as dlg: dlg.ShowModal()
-        
-    
-    def EventExit( self, event ):
-        
-        if HC.options[ 'confirm_client_exit' ]:
-            
-            text = 'Are you sure you want to exit the client? (Will auto-yes in 15 seconds)'
-            
-            with ClientGUIDialogs.DialogYesNo( self, text ) as dlg:
-                
-                call_later = wx.CallLater( 15000, dlg.EndModal, wx.ID_YES )
-                
-                if dlg.ShowModal() == wx.ID_NO:
-                    
-                    call_later.Stop()
-                    
-                    return
-                    
-                
-                call_later.Stop()
-                
-            
-        
-        try: splash = FrameSplash( 'exit' )
-        except:
-            
-            print( 'There was an error trying to start the splash screen!' )
-            
-            print( traceback.format_exc() )
-            
-            try: wx.CallAfter( splash.Destroy )
-            except: pass
-            
-        
-    
-    def EventFocus( self, event ):
-        
-        page = self._notebook.GetCurrentPage()
-        
-        if page is not None: page.SetMediaFocus()
-        
-    
-    def EventMenu( self, event ):
-        
-        action = CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetAction( event.GetId() )
-        
-        if action is not None:
-            
-            ( command, data ) = action
-            
-            if command == 'account_info': self._AccountInfo( data )
-            elif command == 'auto_repo_setup': self._AutoRepoSetup()
-            elif command == 'auto_server_setup': self._AutoServerSetup()
-            elif command == 'backup_database': HC.app.BackupDatabase()
-            elif command == 'backup_service': self._BackupService( data )
-            elif command == 'clear_caches': HC.app.ClearCaches()
-            elif command == 'close_page': self._CloseCurrentPage()
-            elif command == 'debug_garbage':
-                
-                import gc
-                import collections
-                import types
-                
-                gc.collect()
-                
-                count = collections.Counter()
-                
-                class_count = collections.Counter()
-                
-                for o in gc.get_objects():
-                    
-                    count[ type( o ) ] += 1
-                    
-                    if type( o ) == types.InstanceType: class_count[ o.__class__.__name__ ] += 1
-                    elif type( o ) == types.BuiltinFunctionType: class_count[ o.__name__ ] += 1
-                    elif type( o ) == types.BuiltinMethodType: class_count[ o.__name__ ] += 1
-                    
-                
-                print( 'gc:' )
-                
-                for ( k, v ) in count.items():
-                    
-                    if v > 100: print ( k, v )
-                    
-                
-                for ( k, v ) in class_count.items():
-                    
-                    if v > 100: print ( k, v )
-                    
-                
-                print( 'garbage: ' + HC.u( gc.garbage ) )
-                
-            elif command == 'delete_all_closed_pages': self._DeleteAllClosedPages()
-            elif command == 'delete_gui_session':
-                
-                HC.app.Write( 'delete_gui_session', data )
-                
-                HC.pubsub.pub( 'notify_new_sessions' )
-                
-            elif command == 'delete_orphans': self._DeleteOrphans()
-            elif command == 'delete_pending': self._DeletePending( data )
-            elif command == 'delete_service_info': self._DeleteServiceInfo()
-            elif command == 'exit': self.EventExit( event )
-            elif command == 'fetch_ip': self._FetchIP( data )
-            elif command == '8chan_board': webbrowser.open( 'http://8ch.net/hydrus/index.html' )
-            elif command == 'file_integrity': self._CheckFileIntegrity()
-            elif command == 'help': webbrowser.open( 'file://' + HC.BASE_DIR + '/help/index.html' )
-            elif command == 'help_about': self._AboutWindow()
-            elif command == 'help_shortcuts': wx.MessageBox( CC.SHORTCUT_HELP )
-            elif command == 'import_files': self._ImportFiles()
-            elif command == 'import_metadata': self._ImportMetadata()
-            elif command == 'load_gui_session': self._LoadGUISession( data )
-            elif command == 'manage_4chan_pass': self._Manage4chanPass()
-            elif command == 'manage_account_types': self._ManageAccountTypes( data )
-            elif command == 'manage_boorus': self._ManageBoorus()
-            elif command == 'manage_contacts': self._ManageContacts()
-            elif command == 'manage_export_folders': self._ManageExportFolders()
-            elif command == 'manage_imageboards': self._ManageImageboards()
-            elif command == 'manage_import_folders': self._ManageImportFolders()
-            elif command == 'manage_pixiv_account': self._ManagePixivAccount()
-            elif command == 'manage_server_services': self._ManageServer( data )
-            elif command == 'manage_services': self._ManageServices()
-            elif command == 'manage_subscriptions': self._ManageSubscriptions()
-            elif command == 'manage_tag_censorship': self._ManageTagCensorship()
-            elif command == 'manage_tag_parents': self._ManageTagParents()
-            elif command == 'manage_tag_siblings': self._ManageTagSiblings()
-            elif command == 'manage_upnp': self._ManageUPnP()
-            elif command == 'modify_account': self._ModifyAccount( data )
-            elif command == 'new_accounts': self._GenerateNewAccounts( data )
-            elif command == 'new_import_booru': self._NewPageImportBooru()
-            elif command == 'new_import_thread_watcher': self._NewPageImportThreadWatcher()
-            elif command == 'new_import_url': self._NewPageImportURL()
-            elif command == 'new_page':
-                
-                with ClientGUIDialogs.DialogPageChooser( self ) as dlg: dlg.ShowModal()
-                
-            elif command == 'new_page_query': self._NewPageQuery( data )
-            elif command == 'news': self._News( data )
-            elif command == 'open_export_folder': self._OpenExportFolder()
-            elif command == 'options': self._ManageOptions()
-            elif command == 'pause_export_folders_sync': self._PauseSync( 'export_folders' )
-            elif command == 'pause_import_folders_sync': self._PauseSync( 'import_folders' )
-            elif command == 'pause_repo_sync': self._PauseSync( 'repo' )
-            elif command == 'pause_subs_sync': self._PauseSync( 'subs' )
-            elif command == 'petitions': self._NewPagePetitions( data )
-            elif command == 'post_news': self._PostNews( data )
-            elif command == 'redo': HC.pubsub.pub( 'redo' )
-            elif command == 'refresh':
-                
-                page = self._notebook.GetCurrentPage()
-                
-                if page is not None: page.RefreshQuery()
-                
-            elif command == 'regenerate_thumbnails': self._RegenerateThumbnails()
-            elif command == 'restore_database': HC.app.RestoreDatabase()
-            elif command == 'review_services': self._ReviewServices()
-            elif command == 'save_gui_session': self._SaveGUISession()
-            elif command == 'set_password': self._SetPassword()
-            elif command == 'set_media_focus': self._SetMediaFocus()
-            elif command == 'set_search_focus': self._SetSearchFocus()
-            elif command == 'show_hide_splitters':
-                
-                page = self._notebook.GetCurrentPage()
-                
-                if page is not None: page.ShowHideSplit()
-                
-            elif command == 'site': webbrowser.open( 'http://hydrusnetwork.github.io/hydrus/' )
-            elif command == 'start_url_download': self._StartURLDownload()
-            elif command == 'start_youtube_download': self._StartYoutubeDownload()
-            elif command == 'stats': self._Stats( data )
-            elif command == 'synchronised_wait_switch': self._SetSynchronisedWait()
-            elif command == 'tumblr': webbrowser.open( 'http://hydrus.tumblr.com/' )
-            elif command == 'twitter': webbrowser.open( 'http://twitter.com/#!/hydrusnetwork' )
-            elif command == 'unclose_page': self._UnclosePage( data )
-            elif command == 'undo': HC.pubsub.pub( 'undo' )
-            elif command == 'upload_pending': self._UploadPending( data )
-            elif command == 'vacuum_db': self._VacuumDatabase()
-            else: event.Skip()
-            
-        
-    
-    def EventNotebookMiddleClick( self, event ):
-        
-        ( tab_index, flags ) = self._notebook.HitTest( ( event.GetX(), event.GetY() ) )
-        
-        self._ClosePage( tab_index )
-        
-    
-    def EventNotebookPageChanged( self, event ):
-        
-        old_selection = event.GetOldSelection()
-        selection = event.GetSelection()
-        
-        if old_selection != -1: self._notebook.GetPage( old_selection ).PageHidden()
-        
-        if selection != -1: self._notebook.GetPage( selection ).PageShown()
-        
-        self._RefreshStatusBar()
-        
-        event.Skip( True )
-        
-    
-    def ImportFiles( self, paths ): self._ImportFiles( paths )
-    '''
-    def NewCompose( self, identity ):
-        
-        draft_key = os.urandom( 32 )
-        conversation_key = draft_key
-        subject = ''
-        contact_from = identity
-        contacts_to = []
-        recipients_visible = False
-        body = ''
-        attachments = []
-        
-        empty_draft_message = ClientConstantsMessages.DraftMessage( draft_key, conversation_key, subject, contact_from, contacts_to, recipients_visible, body, attachments, is_new = True )
-        
-        FrameComposeMessage( empty_draft_message )
-        
-    '''
-    def NewPageImportGallery( self, gallery_name, gallery_type ): self._NewPageImportGallery( gallery_name, gallery_type )
-    
-    def NewPageImportHDD( self, paths_info, advanced_import_options = {}, paths_to_tags = {}, delete_after_success = False ):
-        
-        new_page = ClientGUIPages.PageImportHDD( self._notebook, paths_info, advanced_import_options = advanced_import_options, paths_to_tags = paths_to_tags, delete_after_success = delete_after_success )
-        
-        self._notebook.AddPage( new_page, 'import', select = True )
-        
-        self._notebook.SetSelection( self._notebook.GetPageCount() - 1 )
-        
-    
-    def NewPageImportThreadWatcher( self ): self._NewPageImportThreadWatcher()
-    
-    def NewPageImportURL( self ): self._NewPageImportURL()
-    
-    def NewPagePetitions( self, service_key ): self._NewPagePetitions( service_key )
-    
-    def NewPageQuery( self, service_key, initial_media_results = [], initial_predicates = [] ): self._NewPageQuery( service_key, initial_media_results = initial_media_results, initial_predicates = initial_predicates )
-    
-    def NewPageThreadDumper( self, hashes ):
-        
-        with ClientGUIDialogs.DialogSelectImageboard( self ) as dlg:
-            
-            if dlg.ShowModal() == wx.ID_OK:
-                
-                imageboard = dlg.GetImageboard()
-                
-                new_page = ClientGUIPages.PageThreadDumper( self._notebook, imageboard, hashes )
-                
-                self._notebook.AddPage( new_page, 'imageboard dumper', select = True )
-                
-                new_page.SetSearchFocus()
-                
-            
-        
-    
-    def NewSimilarTo( self, file_service_key, hash ): self._NewPageQuery( file_service_key, initial_predicates = [ HC.Predicate( HC.PREDICATE_TYPE_SYSTEM, ( HC.SYSTEM_PREDICATE_TYPE_SIMILAR_TO, ( hash, 5 ) ) ) ] )
-    
-    def NotifyNewOptions( self ):
-        
-        self.RefreshAcceleratorTable()
-        
-        self.RefreshMenu( 'services' )
-        
-    
-    def NotifyNewPending( self ): self.RefreshMenu( 'pending' )
-    
-    def NotifyNewPermissions( self ):
-        
-        self.RefreshMenu( 'view' )
-        self.RefreshMenu( 'admin' )
-        
-    
-    def NotifyNewServices( self ):
-        
-        self.RefreshMenu( 'view' )
-        self.RefreshMenu( 'services' )
-        self.RefreshMenu( 'admin' )
-        
-    
-    def NotifyNewSessions( self ): self.RefreshMenu( 'file' )
-    
-    def NotifyNewUndo( self ): self.RefreshMenu( 'undo' )
-    
-    def RefreshAcceleratorTable( self ):
-        
-        interested_actions = [ 'archive', 'inbox', 'close_page', 'filter', 'ratings_filter', 'manage_ratings', 'manage_tags', 'new_page', 'refresh', 'set_media_focus', 'set_search_focus', 'show_hide_splitters', 'synchronised_wait_switch', 'undo', 'redo' ]
-        
-        entries = []
-        
-        for ( modifier, key_dict ) in HC.options[ 'shortcuts' ].items(): entries.extend( [ ( modifier, key, CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetId( action ) ) for ( key, action ) in key_dict.items() if action in interested_actions ] )
-        
-        self.SetAcceleratorTable( wx.AcceleratorTable( entries ) )
-        
-    
-    def RefreshMenu( self, name ):
-        
-        ( menu, label, show ) = self._GenerateMenuInfo( name )
-        
-        if HC.PLATFORM_OSX: menu.SetTitle( label ) # causes bugs in os x if this is not here
-        
-        ( old_menu, old_label, old_show ) = self._menus[ name ]
-        
-        if old_show:
-            
-            old_menu_index = self._menubar.FindMenu( old_label )
-            
-            if show: self._menubar.Replace( old_menu_index, menu, label )
-            else: self._menubar.Remove( old_menu_index )
-            
-        else:
-            
-            if show:
-                
-                insert_index = 0
-                
-                for temp_name in MENU_ORDER:
-                    
-                    if temp_name == name: break
-                    
-                    ( temp_menu, temp_label, temp_show ) = self._menus[ temp_name ]
-                    
-                    if temp_show: insert_index += 1
-                    
-                
-                self._menubar.Insert( insert_index, menu, label )
-                
-            
-        
-        self._menus[ name ] = ( menu, label, show )
-        
-        wx.CallAfter( old_menu.Destroy )
-        
-    
-    def RefreshStatusBar( self ): self._RefreshStatusBar()
-    
-    def SaveLastSession( self ):
-        
-        self._SaveGUISession( 'last session' )
-        
-        wx.CallLater( 5 * 60 * 1000, self.SaveLastSession )
-        
-    
-    def SetDBLockedStatus( self, status ):
-        
-        if self.IsShown():
-            
-            self._statusbar_db_locked = status
-            
-            self._RefreshStatusBar()
-            
-        
-    
-    def SetDownloadsStatus( self, status ):
-        
-        if self.IsShown():
-            
-            self._statusbar_downloads = status
-            
-            self._RefreshStatusBar()
-            
-        
-    
-    def SetMediaFocus( self ): self._SetMediaFocus()
-    
-    def SetInboxStatus( self, status ):
-        
-        if self.IsShown():
-            
-            self._statusbar_inbox = status
-            
-            self._RefreshStatusBar()
-            
-        
-    
-    def Shutdown( self ):
-        
-        self._message_manager.Hide()
-        
-        self.Hide()
-        
-        try: self._message_manager.CleanBeforeDestroy()
-        except: pass
-        
-        for page in [ self._notebook.GetPage( i ) for i in range( self._notebook.GetPageCount() ) ]: page.CleanBeforeDestroy()
-        
-        page = self._notebook.GetCurrentPage()
-        
-        if page is not None:
-            
-            ( HC.options[ 'hpos' ], HC.options[ 'vpos' ] ) = page.GetSashPositions()
-            
-        
-        HC.app.Write( 'save_options' )
-        
-        self._SaveGUISession( 'last session' )
-        
-        wx.CallAfter( self.Destroy )
-        
-    
-    def TestAbleToClose( self ):
-        
-        for page in [ self._notebook.GetPage( i ) for i in range( self._notebook.GetPageCount() ) ]: page.TestAbleToClose()
-        
-    '''
+		text = 'This will rebuild the database, rewriting all indices and tables to be contiguous and optimising most operations. It happens automatically every few days, but you can force it here. If you have a large database, it will take a few minutes. A popup message will appear when it is done.'
+		
+		with ClientGUIDialogs.DialogYesNo( self, text ) as dlg:
+			
+			if dlg.ShowModal() == wx.ID_YES: HC.app.Write( 'vacuum' )
+			
+		
+	
+	def ClearClosedPages( self ):
+		
+		new_closed_pages = []
+		
+		now = HC.GetNow()
+		
+		timeout = 60 * 60
+		
+		for ( time_closed, index, name, page ) in self._closed_pages:
+			
+			if time_closed + timeout < now: self._DestroyPage( page )
+			else: new_closed_pages.append( ( time_closed, index, name, page ) )
+			
+		
+		old_closed_pages = self._closed_pages
+		
+		self._closed_pages = new_closed_pages
+		
+		if len( old_closed_pages ) != len( new_closed_pages ): HC.pubsub.pub( 'notify_new_undo' )
+		
+	
+	def DoFirstStart( self ):
+		
+		with ClientGUIDialogs.DialogFirstStart( self ) as dlg: dlg.ShowModal()
+		
+	
+	def EventExit( self, event ):
+		
+		if HC.options[ 'confirm_client_exit' ]:
+			
+			text = 'Are you sure you want to exit the client? (Will auto-yes in 15 seconds)'
+			
+			with ClientGUIDialogs.DialogYesNo( self, text ) as dlg:
+				
+				call_later = wx.CallLater( 15000, dlg.EndModal, wx.ID_YES )
+				
+				if dlg.ShowModal() == wx.ID_NO:
+					
+					call_later.Stop()
+					
+					return
+					
+				
+				call_later.Stop()
+				
+			
+		
+		try: splash = FrameSplash( 'exit' )
+		except:
+			
+			print( 'There was an error trying to start the splash screen!' )
+			
+			print( traceback.format_exc() )
+			
+			try: wx.CallAfter( splash.Destroy )
+			except: pass
+			
+		
+	
+	def EventFocus( self, event ):
+		
+		page = self._notebook.GetCurrentPage()
+		
+		if page is not None: page.SetMediaFocus()
+		
+	
+	def EventMenu( self, event ):
+		
+		action = CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetAction( event.GetId() )
+		
+		if action is not None:
+			
+			( command, data ) = action
+			
+			if command == 'account_info': self._AccountInfo( data )
+			elif command == 'auto_repo_setup': self._AutoRepoSetup()
+			elif command == 'auto_server_setup': self._AutoServerSetup()
+			elif command == 'backup_database': HC.app.BackupDatabase()
+			elif command == 'backup_service': self._BackupService( data )
+			elif command == 'clear_caches': HC.app.ClearCaches()
+			elif command == 'close_page': self._CloseCurrentPage()
+			elif command == 'debug_garbage':
+				
+				import gc
+				import collections
+				import types
+				
+				gc.collect()
+				
+				count = collections.Counter()
+				
+				class_count = collections.Counter()
+				
+				for o in gc.get_objects():
+					
+					count[ type( o ) ] += 1
+					
+					if type( o ) == types.InstanceType: class_count[ o.__class__.__name__ ] += 1
+					elif type( o ) == types.BuiltinFunctionType: class_count[ o.__name__ ] += 1
+					elif type( o ) == types.BuiltinMethodType: class_count[ o.__name__ ] += 1
+					
+				
+				print( 'gc:' )
+				
+				for ( k, v ) in count.items():
+					
+					if v > 100: print ( k, v )
+					
+				
+				for ( k, v ) in class_count.items():
+					
+					if v > 100: print ( k, v )
+					
+				
+				print( 'garbage: ' + HC.u( gc.garbage ) )
+				
+			elif command == 'delete_all_closed_pages': self._DeleteAllClosedPages()
+			elif command == 'delete_gui_session':
+				
+				HC.app.Write( 'delete_gui_session', data )
+				
+				HC.pubsub.pub( 'notify_new_sessions' )
+				
+			elif command == 'delete_orphans': self._DeleteOrphans()
+			elif command == 'delete_pending': self._DeletePending( data )
+			elif command == 'delete_service_info': self._DeleteServiceInfo()
+			elif command == 'exit': self.EventExit( event )
+			elif command == 'fetch_ip': self._FetchIP( data )
+			elif command == '8chan_board': webbrowser.open( 'http://8ch.net/hydrus/index.html' )
+			elif command == 'file_integrity': self._CheckFileIntegrity()
+			elif command == 'help': webbrowser.open( 'file://' + HC.BASE_DIR + '/help/index.html' )
+			elif command == 'help_about': self._AboutWindow()
+			elif command == 'help_shortcuts': wx.MessageBox( CC.SHORTCUT_HELP )
+			elif command == 'import_files': self._ImportFiles()
+			elif command == 'import_metadata': self._ImportMetadata()
+			elif command == 'load_gui_session': self._LoadGUISession( data )
+			elif command == 'manage_4chan_pass': self._Manage4chanPass()
+			elif command == 'manage_account_types': self._ManageAccountTypes( data )
+			elif command == 'manage_boorus': self._ManageBoorus()
+			elif command == 'manage_contacts': self._ManageContacts()
+			elif command == 'manage_export_folders': self._ManageExportFolders()
+			elif command == 'manage_imageboards': self._ManageImageboards()
+			elif command == 'manage_import_folders': self._ManageImportFolders()
+			elif command == 'manage_pixiv_account': self._ManagePixivAccount()
+			elif command == 'manage_server_services': self._ManageServer( data )
+			elif command == 'manage_services': self._ManageServices()
+			elif command == 'manage_subscriptions': self._ManageSubscriptions()
+			elif command == 'manage_tag_censorship': self._ManageTagCensorship()
+			elif command == 'manage_tag_parents': self._ManageTagParents()
+			elif command == 'manage_tag_siblings': self._ManageTagSiblings()
+			elif command == 'manage_upnp': self._ManageUPnP( data )
+			elif command == 'modify_account': self._ModifyAccount( data )
+			elif command == 'new_accounts': self._GenerateNewAccounts( data )
+			elif command == 'new_import_booru': self._NewPageImportBooru()
+			elif command == 'new_import_thread_watcher': self._NewPageImportThreadWatcher()
+			elif command == 'new_import_url': self._NewPageImportURL()
+			elif command == 'new_page':
+				
+				with ClientGUIDialogs.DialogPageChooser( self ) as dlg: dlg.ShowModal()
+				
+			elif command == 'new_page_query': self._NewPageQuery( data )
+			elif command == 'news': self._News( data )
+			elif command == 'open_export_folder': self._OpenExportFolder()
+			elif command == 'options': self._ManageOptions()
+			elif command == 'pause_export_folders_sync': self._PauseSync( 'export_folders' )
+			elif command == 'pause_import_folders_sync': self._PauseSync( 'import_folders' )
+			elif command == 'pause_repo_sync': self._PauseSync( 'repo' )
+			elif command == 'pause_subs_sync': self._PauseSync( 'subs' )
+			elif command == 'petitions': self._NewPagePetitions( data )
+			elif command == 'post_news': self._PostNews( data )
+			elif command == 'redo': HC.pubsub.pub( 'redo' )
+			elif command == 'refresh':
+				
+				page = self._notebook.GetCurrentPage()
+				
+				if page is not None: page.RefreshQuery()
+				
+			elif command == 'regenerate_thumbnails': self._RegenerateThumbnails()
+			elif command == 'restore_database': HC.app.RestoreDatabase()
+			elif command == 'review_services': self._ReviewServices()
+			elif command == 'save_gui_session': self._SaveGUISession()
+			elif command == 'set_password': self._SetPassword()
+			elif command == 'set_media_focus': self._SetMediaFocus()
+			elif command == 'set_search_focus': self._SetSearchFocus()
+			elif command == 'show_hide_splitters':
+				
+				page = self._notebook.GetCurrentPage()
+				
+				if page is not None: page.ShowHideSplit()
+				
+			elif command == 'site': webbrowser.open( 'http://hydrusnetwork.github.io/hydrus/' )
+			elif command == 'start_url_download': self._StartURLDownload()
+			elif command == 'start_youtube_download': self._StartYoutubeDownload()
+			elif command == 'stats': self._Stats( data )
+			elif command == 'synchronised_wait_switch': self._SetSynchronisedWait()
+			elif command == 'tumblr': webbrowser.open( 'http://hydrus.tumblr.com/' )
+			elif command == 'twitter': webbrowser.open( 'http://twitter.com/#!/hydrusnetwork' )
+			elif command == 'unclose_page': self._UnclosePage( data )
+			elif command == 'undo': HC.pubsub.pub( 'undo' )
+			elif command == 'upload_pending': self._UploadPending( data )
+			elif command == 'vacuum_db': self._VacuumDatabase()
+			else: event.Skip()
+			
+		
+	
+	def EventNotebookMiddleClick( self, event ):
+		
+		( tab_index, flags ) = self._notebook.HitTest( ( event.GetX(), event.GetY() ) )
+		
+		self._ClosePage( tab_index )
+		
+	
+	def EventNotebookPageChanged( self, event ):
+		
+		old_selection = event.GetOldSelection()
+		selection = event.GetSelection()
+		
+		if old_selection != -1: self._notebook.GetPage( old_selection ).PageHidden()
+		
+		if selection != -1: self._notebook.GetPage( selection ).PageShown()
+		
+		self._RefreshStatusBar()
+		
+		event.Skip( True )
+		
+	
+	def ImportFiles( self, paths ): self._ImportFiles( paths )
+	'''
+	def NewCompose( self, identity ):
+		
+		draft_key = os.urandom( 32 )
+		conversation_key = draft_key
+		subject = ''
+		contact_from = identity
+		contacts_to = []
+		recipients_visible = False
+		body = ''
+		attachments = []
+		
+		empty_draft_message = ClientConstantsMessages.DraftMessage( draft_key, conversation_key, subject, contact_from, contacts_to, recipients_visible, body, attachments, is_new = True )
+		
+		FrameComposeMessage( empty_draft_message )
+		
+	'''
+	def NewPageImportGallery( self, gallery_name, gallery_type ): self._NewPageImportGallery( gallery_name, gallery_type )
+	
+	def NewPageImportHDD( self, paths_info, advanced_import_options = {}, paths_to_tags = {}, delete_after_success = False ):
+		
+		new_page = ClientGUIPages.PageImportHDD( self._notebook, paths_info, advanced_import_options = advanced_import_options, paths_to_tags = paths_to_tags, delete_after_success = delete_after_success )
+		
+		self._notebook.AddPage( new_page, 'import', select = True )
+		
+		self._notebook.SetSelection( self._notebook.GetPageCount() - 1 )
+		
+	
+	def NewPageImportThreadWatcher( self ): self._NewPageImportThreadWatcher()
+	
+	def NewPageImportURL( self ): self._NewPageImportURL()
+	
+	def NewPagePetitions( self, service_key ): self._NewPagePetitions( service_key )
+	
+	def NewPageQuery( self, service_key, initial_media_results = [], initial_predicates = [] ): self._NewPageQuery( service_key, initial_media_results = initial_media_results, initial_predicates = initial_predicates )
+	
+	def NewPageThreadDumper( self, hashes ):
+		
+		with ClientGUIDialogs.DialogSelectImageboard( self ) as dlg:
+			
+			if dlg.ShowModal() == wx.ID_OK:
+				
+				imageboard = dlg.GetImageboard()
+				
+				new_page = ClientGUIPages.PageThreadDumper( self._notebook, imageboard, hashes )
+				
+				self._notebook.AddPage( new_page, 'imageboard dumper', select = True )
+				
+				new_page.SetSearchFocus()
+				
+			
+		
+	
+	def NewSimilarTo( self, file_service_key, hash ): self._NewPageQuery( file_service_key, initial_predicates = [ HC.Predicate( HC.PREDICATE_TYPE_SYSTEM, ( HC.SYSTEM_PREDICATE_TYPE_SIMILAR_TO, ( hash, 5 ) ) ) ] )
+	
+	def NotifyNewOptions( self ):
+		
+		self.RefreshAcceleratorTable()
+		
+		self.RefreshMenu( 'services' )
+		
+	
+	def NotifyNewPending( self ): self.RefreshMenu( 'pending' )
+	
+	def NotifyNewPermissions( self ):
+		
+		self.RefreshMenu( 'view' )
+		self.RefreshMenu( 'admin' )
+		
+	
+	def NotifyNewServices( self ):
+		
+		self.RefreshMenu( 'view' )
+		self.RefreshMenu( 'services' )
+		self.RefreshMenu( 'admin' )
+		
+	
+	def NotifyNewSessions( self ): self.RefreshMenu( 'file' )
+	
+	def NotifyNewUndo( self ): self.RefreshMenu( 'undo' )
+	
+	def RefreshAcceleratorTable( self ):
+		
+		interested_actions = [ 'archive', 'inbox', 'close_page', 'filter', 'ratings_filter', 'manage_ratings', 'manage_tags', 'new_page', 'refresh', 'set_media_focus', 'set_search_focus', 'show_hide_splitters', 'synchronised_wait_switch', 'undo', 'redo' ]
+		
+		entries = []
+		
+		for ( modifier, key_dict ) in HC.options[ 'shortcuts' ].items(): entries.extend( [ ( modifier, key, CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetId( action ) ) for ( key, action ) in key_dict.items() if action in interested_actions ] )
+		
+		self.SetAcceleratorTable( wx.AcceleratorTable( entries ) )
+		
+	
+	def RefreshMenu( self, name ):
+		
+		( menu, label, show ) = self._GenerateMenuInfo( name )
+		
+		if HC.PLATFORM_OSX: menu.SetTitle( label ) # causes bugs in os x if this is not here
+		
+		( old_menu, old_label, old_show ) = self._menus[ name ]
+		
+		if old_show:
+			
+			old_menu_index = self._menubar.FindMenu( old_label )
+			
+			if show: self._menubar.Replace( old_menu_index, menu, label )
+			else: self._menubar.Remove( old_menu_index )
+			
+		else:
+			
+			if show:
+				
+				insert_index = 0
+				
+				for temp_name in MENU_ORDER:
+					
+					if temp_name == name: break
+					
+					( temp_menu, temp_label, temp_show ) = self._menus[ temp_name ]
+					
+					if temp_show: insert_index += 1
+					
+				
+				self._menubar.Insert( insert_index, menu, label )
+				
+			
+		
+		self._menus[ name ] = ( menu, label, show )
+		
+		wx.CallAfter( old_menu.Destroy )
+		
+	
+	def RefreshStatusBar( self ): self._RefreshStatusBar()
+	
+	def SaveLastSession( self ):
+		
+		self._SaveGUISession( 'last session' )
+		
+		wx.CallLater( 5 * 60 * 1000, self.SaveLastSession )
+		
+	
+	def SetDBLockedStatus( self, status ):
+		
+		if self.IsShown():
+			
+			self._statusbar_db_locked = status
+			
+			self._RefreshStatusBar()
+			
+		
+	
+	def SetDownloadsStatus( self, status ):
+		
+		if self.IsShown():
+			
+			self._statusbar_downloads = status
+			
+			self._RefreshStatusBar()
+			
+		
+	
+	def SetMediaFocus( self ): self._SetMediaFocus()
+	
+	def SetInboxStatus( self, status ):
+		
+		if self.IsShown():
+			
+			self._statusbar_inbox = status
+			
+			self._RefreshStatusBar()
+			
+		
+	
+	def Shutdown( self ):
+		
+		self._message_manager.Hide()
+		
+		self.Hide()
+		
+		try: self._message_manager.CleanBeforeDestroy()
+		except: pass
+		
+		for page in [ self._notebook.GetPage( i ) for i in range( self._notebook.GetPageCount() ) ]: page.CleanBeforeDestroy()
+		
+		page = self._notebook.GetCurrentPage()
+		
+		if page is not None:
+			
+			( HC.options[ 'hpos' ], HC.options[ 'vpos' ] ) = page.GetSashPositions()
+			
+		
+		HC.app.Write( 'save_options' )
+		
+		self._SaveGUISession( 'last session' )
+		
+		wx.CallAfter( self.Destroy )
+		
+	
+	def TestAbleToClose( self ):
+		
+		for page in [ self._notebook.GetPage( i ) for i in range( self._notebook.GetPageCount() ) ]: page.TestAbleToClose()
+		
+	'''
+>>>>>>> f4f72c9c6e706e9d060b4be49328538610234933
 class FrameComposeMessage( ClientGUICommon.Frame ):
-    
-    def __init__( self, empty_draft_message ):
-        
-        ClientGUICommon.Frame.__init__( self, None, title = HC.app.PrepStringForDisplay( 'Compose Message' ) )
-        
-        self.SetInitialSize( ( 920, 600 ) )
-        
-        vbox = wx.BoxSizer( wx.VERTICAL )
-        
-        self._draft_panel = ClientGUIMessages.DraftPanel( self, empty_draft_message )
-        
-        vbox.AddF( self._draft_panel, FLAGS_EXPAND_BOTH_WAYS )
-        
-        self.SetSizer( vbox )
-        
-        self.Show( True )
-        
-        HC.pubsub.sub( self, 'DeleteConversation', 'delete_conversation_gui' )
-        HC.pubsub.sub( self, 'DeleteDraft', 'delete_draft_gui' )
-        
-    
-    def DeleteConversation( self, conversation_key ):
-        
-        if self._draft_panel.GetConversationKey() == conversation_key: self.Close()
-        
-    
-    def DeleteDraft( self, draft_key ):
-        
-        if draft_key == self._draft_panel.GetDraftKey(): self.Close()
-        
-    '''
+	
+	def __init__( self, empty_draft_message ):
+		
+		ClientGUICommon.Frame.__init__( self, None, title = HC.app.PrepStringForDisplay( 'Compose Message' ) )
+		
+		self.SetInitialSize( ( 920, 600 ) )
+		
+		vbox = wx.BoxSizer( wx.VERTICAL )
+		
+		self._draft_panel = ClientGUIMessages.DraftPanel( self, empty_draft_message )
+		
+		vbox.AddF( self._draft_panel, FLAGS_EXPAND_BOTH_WAYS )
+		
+		self.SetSizer( vbox )
+		
+		self.Show( True )
+		
+		HC.pubsub.sub( self, 'DeleteConversation', 'delete_conversation_gui' )
+		HC.pubsub.sub( self, 'DeleteDraft', 'delete_draft_gui' )
+		
+	
+	def DeleteConversation( self, conversation_key ):
+		
+		if self._draft_panel.GetConversationKey() == conversation_key: self.Close()
+		
+	
+	def DeleteDraft( self, draft_key ):
+		
+		if draft_key == self._draft_panel.GetDraftKey(): self.Close()
+		
+	'''
 class FrameReviewServices( ClientGUICommon.Frame ):
     
     def __init__( self ):
@@ -2958,203 +2959,202 @@ class FrameReviewServices( ClientGUICommon.Frame ):
         
     
 class FrameSplash( ClientGUICommon.Frame ):
-    
-    WIDTH = 254
-    HEIGHT = 220
-    
-    def __init__( self, action ):
-        
-        wx.Frame.__init__( self, None, style = wx.FRAME_NO_TASKBAR, title = 'hydrus client' )
-        
-        self._bmp = wx.EmptyBitmap( self.WIDTH, self.HEIGHT, 24 )
-        
-        self.SetSize( ( self.WIDTH, self.HEIGHT ) )
-        
-        self.Center()
-        
-        self._last_drag_coordinates = None
-        self._total_drag_delta = ( 0, 0 )
-        self._initial_position = self.GetPosition()
-        
-        # this is 124 x 166
-        self._hydrus = wx.Image( HC.STATIC_DIR + os.path.sep + 'hydrus_splash.png', type=wx.BITMAP_TYPE_PNG ).ConvertToBitmap()
-        
-        self.Bind( wx.EVT_PAINT, self.EventPaint )
-        self.Bind( wx.EVT_MOTION, self.EventDrag )
-        self.Bind( wx.EVT_LEFT_DOWN, self.EventDragBegin )
-        self.Bind( wx.EVT_LEFT_UP, self.EventDragEnd )
-        self.Bind( wx.EVT_ERASE_BACKGROUND, self.EventEraseBackground )
-        
-        if action == 'boot':
-            
-            self.SetText( 'initialising startup' )
-            
-            my_thread = threading.Thread( target = self.BootApp, name = 'Application Boot Thread' )
-            
-        elif action == 'exit':
-            
-            self.SetText( 'initialising shutdown' )
-            
-            my_thread = threading.Thread( target = self.ExitApp, name = 'Application Boot Thread' )
-            
-        
-        self.Show( True )
-        
-        HC.pubsub.sub( self, 'SetText', 'set_splash_text' )
-        
-        wx.CallAfter( my_thread.start )
-        
-    
-    def BootApp( self ):
-        
-        try:
-            
-            wx.CallAfter( self.SetText, 'booting db' )
-            
-            HC.app.InitDB()
-            
-            if HC.options[ 'password' ] is not None:
-                
-                wx.CallAfter( self.SetText, 'waiting for password' )
-                
-                HC.app.InitCheckPassword()
-                
-            
-            wx.CallAfter( self.SetText, 'booting gui' )
-            
-            wx.CallAfter( HC.app.InitGUI )
-            
-        except sqlite3.OperationalError as e:
-            
-            text = 'Database error!' + os.linesep * 2 + traceback.format_exc()
-            
-            print( text )
-            
-            wx.CallAfter( wx.MessageBox, text )
-            
-        except HydrusExceptions.PermissionException as e: pass
-        except:
-            
-            text = 'Woah, bad error during startup!' + os.linesep * 2 + traceback.format_exc()
-            
-            print( text )
-            
-            wx.CallAfter( wx.MessageBox, text )
-            
-        finally:
-            
-            try: wx.CallAfter( self.Destroy )
-            except: pass
-            
-        
-    
-    def EventDrag( self, event ):
-        
-        if event.Dragging() and self._last_drag_coordinates is not None:
-            
-            ( old_x, old_y ) = self._last_drag_coordinates
-            
-            ( x, y ) = event.GetPosition()
-            
-            ( delta_x, delta_y ) = ( x - old_x, y - old_y )
-            
-            ( old_delta_x, old_delta_y ) = self._total_drag_delta
-            
-            self._total_drag_delta = ( old_delta_x + delta_x, old_delta_y + delta_y )
-            
-            ( init_x, init_y ) = self._initial_position
-            
-            ( total_delta_x, total_delta_y ) = self._total_drag_delta
-            
-            self.SetPosition( ( init_x + total_delta_x, init_y + total_delta_y ) )
-            
-        
-    
-    def EventDragBegin( self, event ):
-        
-        self._last_drag_coordinates = event.GetPosition()
-        
-        event.Skip()
-        
-    
-    def EventDragEnd( self, event ):
-        
-        self._last_drag_coordinates = None
-        
-        event.Skip()
-        
-    
-    def EventEraseBackground( self, event ): pass
-    
-    def EventPaint( self, event ): wx.BufferedPaintDC( self, self._bmp )
-    
-    def ExitApp( self ):
-        
-        try:
-            
-            wx.CallAfter( self.SetText, 'exiting gui' )
-            
-            gui = HC.app.GetGUI()
-            
-            try: gui.TestAbleToClose()
-            except: return
-            
-            gui.Shutdown()
-            
-            wx.CallAfter( self.SetText, 'exiting db' )
-            
-            db = HC.app.GetDB()
-            
-            HC.app.MaintainDB()
-            
-            db.Shutdown()
-            
-            while not db.LoopIsFinished(): time.sleep( 0.1 )
-            
-        except sqlite3.OperationalError as e:
-            
-            text = 'Database error!' + os.linesep * 2 + traceback.format_exc()
-            
-            print( text )
-            
-            wx.CallAfter( wx.MessageBox, text )
-            
-        except HydrusExceptions.PermissionException as e: pass
-        except:
-            
-            text = 'Woah, bad error during shutdown!' + os.linesep * 2 + 'You may need to quit the program from task manager.' + os.linesep * 2 + traceback.format_exc()
-            
-            print( text )
-            
-            wx.CallAfter( wx.MessageBox, text )
-            
-        finally:
-            
-            try: wx.CallAfter( self.Destroy )
-            except: pass
-            
-        
-    
-    def SetText( self, text ):
-        
-        print( text )
-        
-        dc = wx.BufferedDC( wx.ClientDC( self ), self._bmp )
-        
-        dc.SetBackground( wx.Brush( wx.WHITE ) )
-        
-        dc.Clear()
-        
-        x = ( self.WIDTH - 124 ) / 2
-        
-        dc.DrawBitmap( self._hydrus, x, 15 )
-        
-        dc.SetFont( wx.SystemSettings.GetFont( wx.SYS_DEFAULT_GUI_FONT ) )
-        
-        ( width, height ) = dc.GetTextExtent( text )
-        
-        x = ( self.WIDTH - width ) / 2
-        
-        dc.DrawText( text, x, 200 )
-        
-    
+	
+	WIDTH = 254
+	HEIGHT = 220
+	
+	def __init__( self, action ):
+		
+		wx.Frame.__init__( self, None, style = wx.FRAME_NO_TASKBAR, title = 'hydrus client' )
+		
+		self._bmp = wx.EmptyBitmap( self.WIDTH, self.HEIGHT, 24 )
+		
+		self.SetSize( ( self.WIDTH, self.HEIGHT ) )
+		
+		self.Center()
+		
+		self._last_drag_coordinates = None
+		self._total_drag_delta = ( 0, 0 )
+		self._initial_position = self.GetPosition()
+		
+		# this is 124 x 166
+		self._hydrus = wx.Image( HC.STATIC_DIR + os.path.sep + 'hydrus_splash.png', type=wx.BITMAP_TYPE_PNG ).ConvertToBitmap()
+		
+		self.Bind( wx.EVT_PAINT, self.EventPaint )
+		self.Bind( wx.EVT_MOTION, self.EventDrag )
+		self.Bind( wx.EVT_LEFT_DOWN, self.EventDragBegin )
+		self.Bind( wx.EVT_LEFT_UP, self.EventDragEnd )
+		self.Bind( wx.EVT_ERASE_BACKGROUND, self.EventEraseBackground )
+		
+		if action == 'boot':
+			
+			self.SetText( 'initialising startup' )
+			
+			my_thread = threading.Thread( target = self.BootApp, name = 'Application Boot Thread' )
+			
+		elif action == 'exit':
+			
+			self.SetText( 'initialising shutdown' )
+			
+			my_thread = threading.Thread( target = self.ExitApp, name = 'Application Boot Thread' )
+			
+		
+		self.Show( True )
+		
+		HC.pubsub.sub( self, 'SetText', 'set_splash_text' )
+		
+		wx.CallAfter( my_thread.start )
+		
+	
+	def BootApp( self ):
+		
+		try:
+			
+			wx.CallAfter( self.SetText, 'booting db' )
+			
+			HC.app.InitDB()
+			
+			if HC.options[ 'password' ] is not None:
+				
+				wx.CallAfter( self.SetText, 'waiting for password' )
+				
+				HC.app.InitCheckPassword()
+				
+			
+			wx.CallAfter( self.SetText, 'booting gui' )
+			
+			wx.CallAfter( HC.app.InitGUI )
+			
+		except sqlite3.OperationalError as e:
+			
+			text = 'Database error!' + os.linesep * 2 + traceback.format_exc()
+			
+			print( text )
+			
+			wx.CallAfter( wx.MessageBox, text )
+			
+		except HydrusExceptions.PermissionException as e: pass
+		except:
+			
+			text = 'Woah, bad error during startup!' + os.linesep * 2 + traceback.format_exc()
+			
+			print( text )
+			
+			wx.CallAfter( wx.MessageBox, text )
+			
+		finally:
+			
+			try: wx.CallAfter( self.Destroy )
+			except: pass
+			
+		
+	
+	def EventDrag( self, event ):
+		
+		if event.Dragging() and self._last_drag_coordinates is not None:
+			
+			( old_x, old_y ) = self._last_drag_coordinates
+			
+			( x, y ) = event.GetPosition()
+			
+			( delta_x, delta_y ) = ( x - old_x, y - old_y )
+			
+			( old_delta_x, old_delta_y ) = self._total_drag_delta
+			
+			self._total_drag_delta = ( old_delta_x + delta_x, old_delta_y + delta_y )
+			
+			( init_x, init_y ) = self._initial_position
+			
+			( total_delta_x, total_delta_y ) = self._total_drag_delta
+			
+			self.SetPosition( ( init_x + total_delta_x, init_y + total_delta_y ) )
+			
+		
+	
+	def EventDragBegin( self, event ):
+		
+		self._last_drag_coordinates = event.GetPosition()
+		
+		event.Skip()
+		
+	
+	def EventDragEnd( self, event ):
+		
+		self._last_drag_coordinates = None
+		
+		event.Skip()
+		
+	
+	def EventEraseBackground( self, event ): pass
+	
+	def EventPaint( self, event ): wx.BufferedPaintDC( self, self._bmp )
+	
+	def ExitApp( self ):
+		
+		try:
+			
+			wx.CallAfter( self.SetText, 'exiting gui' )
+			
+			gui = HC.app.GetGUI()
+			
+			try: gui.TestAbleToClose()
+			except: return
+			
+			gui.Shutdown()
+			
+			wx.CallAfter( self.SetText, 'exiting db' )
+			
+			db = HC.app.GetDB()
+			
+			HC.app.MaintainDB()
+			
+			db.Shutdown()
+			
+			while not db.LoopIsFinished(): time.sleep( 0.1 )
+			
+		except sqlite3.OperationalError as e:
+			
+			text = 'Database error!' + os.linesep * 2 + traceback.format_exc()
+			
+			print( text )
+			
+			wx.CallAfter( wx.MessageBox, text )
+			
+		except HydrusExceptions.PermissionException as e: pass
+		except:
+			
+			text = 'Woah, bad error during shutdown!' + os.linesep * 2 + 'You may need to quit the program from task manager.' + os.linesep * 2 + traceback.format_exc()
+			
+			print( text )
+			
+			wx.CallAfter( wx.MessageBox, text )
+			
+		finally:
+			
+			try: wx.CallAfter( self.Destroy )
+			except: pass
+			
+		
+	
+	def SetText( self, text ):
+		
+		print( text )
+		
+		dc = wx.BufferedDC( wx.ClientDC( self ), self._bmp )
+		
+		dc.SetBackground( wx.Brush( wx.WHITE ) )
+		
+		dc.Clear()
+		
+		x = ( self.WIDTH - 124 ) / 2
+		
+		dc.DrawBitmap( self._hydrus, x, 15 )
+		
+		dc.SetFont( wx.SystemSettings.GetFont( wx.SYS_DEFAULT_GUI_FONT ) )
+		
+		( width, height ) = dc.GetTextExtent( text )
+		
+		x = ( self.WIDTH - width ) / 2
+		
+		dc.DrawText( text, x, 200 )
+		

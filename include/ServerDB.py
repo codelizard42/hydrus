@@ -2550,4 +2550,3 @@ class DB( ServiceDB ):
         
         return job.GetResult()
         
-    

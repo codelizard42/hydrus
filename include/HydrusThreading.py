@@ -10,20 +10,20 @@ import traceback
 import wx
 
 class DAEMON( threading.Thread ):
-    
-    def __init__( self, name, period = 1200 ):
-        
-        threading.Thread.__init__( self, name = name )
-        
-        self._name = name
-        
-        self._event = threading.Event()
-        
-        HC.pubsub.sub( self, 'shutdown', 'shutdown' )
-        
-    
-    def shutdown( self ): self._event.set()
-    
+	
+	def __init__( self, name, period = 1200 ):
+		
+		threading.Thread.__init__( self, name = name )
+		
+		self._name = name
+		
+		self._event = threading.Event()
+		
+		HC.pubsub.sub( self, 'shutdown', 'shutdown' )
+		
+	
+	def shutdown( self ): self._event.set()
+	
 class DAEMONQueue( DAEMON ):
     
     def __init__( self, name, callable, queue_topic, period = 10 ):
@@ -80,57 +80,57 @@ class DAEMONQueue( DAEMON ):
         
     
 class DAEMONWorker( DAEMON ):
-    
-    def __init__( self, name, callable, topics = [], period = 1200, init_wait = 3, pre_callable_wait = 3 ):
-        
-        DAEMON.__init__( self, name )
-        
-        self._callable = callable
-        self._topics = topics
-        self._period = period
-        self._init_wait = init_wait
-        self._pre_callable_wait = pre_callable_wait
-        
-        for topic in topics: HC.pubsub.sub( self, 'set', topic )
-        
-        self.start()
-        
-    
-    def run( self ):
-        
-        self._event.wait( self._init_wait )
-        
-        while True:
-            
-            if HC.shutdown: return
-            
-            time.sleep( self._pre_callable_wait )
-            
-            while HC.app.JustWokeFromSleep():
-                
-                if HC.shutdown: return
-                
-                time.sleep( 10 )
-                
-            
-            try: self._callable()
-            except Exception as e:
-                
-                HC.ShowText( 'Daemon ' + self._name + ' encountered an exception:' )
-                
-                HC.ShowException( e )
-                
-            
-            if HC.shutdown: return
-            
-            self._event.wait( self._period )
-            
-            self._event.clear()
-            
-        
-    
-    def set( self, *args, **kwargs ): self._event.set()
-    
+	
+	def __init__( self, name, callable, topics = [], period = 1200, init_wait = 3, pre_callable_wait = 3 ):
+		
+		DAEMON.__init__( self, name )
+		
+		self._callable = callable
+		self._topics = topics
+		self._period = period
+		self._init_wait = init_wait
+		self._pre_callable_wait = pre_callable_wait
+		
+		for topic in topics: HC.pubsub.sub( self, 'set', topic )
+		
+		self.start()
+		
+	
+	def run( self ):
+		
+		self._event.wait( self._init_wait )
+		
+		while True:
+			
+			if HC.shutdown: return
+			
+			time.sleep( self._pre_callable_wait )
+			
+			while HC.app.JustWokeFromSleep():
+				
+				if HC.shutdown: return
+				
+				time.sleep( 10 )
+				
+			
+			try: self._callable()
+			except Exception as e:
+				
+				HC.ShowText( 'Daemon ' + self._name + ' encountered an exception:' )
+				
+				HC.ShowException( e )
+				
+			
+			if HC.shutdown: return
+			
+			self._event.wait( self._period )
+			
+			self._event.clear()
+			
+		
+	
+	def set( self, *args, **kwargs ): self._event.set()
+	
 class DAEMONCallToThread( DAEMON ):
     
     def __init__( self ):
@@ -182,10 +182,10 @@ class DAEMONCallToThread( DAEMON ):
 call_to_threads = [ DAEMONCallToThread() for i in range( 10 ) ]
 
 def CallToThread( callable, *args, **kwargs ):
-    
-    call_to_thread = random.choice( call_to_threads )
-    
-    while call_to_thread == threading.current_thread: call_to_thread = random.choice( call_to_threads )
-    
-    call_to_thread.put( callable, *args, **kwargs )
-    
+	
+	call_to_thread = random.choice( call_to_threads )
+	
+	while call_to_thread == threading.current_thread: call_to_thread = random.choice( call_to_threads )
+	
+	call_to_thread.put( callable, *args, **kwargs )
+	

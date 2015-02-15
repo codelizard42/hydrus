@@ -242,19 +242,19 @@ class Controller( wx.App ):
         
     
 class TaskBarIcon( wx.TaskBarIcon ):
-    
-    def __init__( self ):
-        
-        wx.TaskBarIcon.__init__( self )
-        
-        icon = wx.Icon( HC.STATIC_DIR + os.path.sep + 'hydrus.ico', wx.BITMAP_TYPE_ICO )
-        
-        self.SetIcon( icon, 'hydrus server' )
-        
-        self._tbmenu = wx.Menu()
-        
-        self._tbmenu.Append( wx.ID_EXIT, 'exit' )
-        
-        self.Bind( wx.EVT_TASKBAR_RIGHT_DOWN, lambda event: self.PopupMenu( self._tbmenu ) )
-        
-    
+	
+	def __init__( self ):
+		
+		wx.TaskBarIcon.__init__( self )
+		
+		icon = wx.Icon( HC.STATIC_DIR + os.path.sep + 'hydrus.ico', wx.BITMAP_TYPE_ICO )
+		
+		self.SetIcon( icon, 'hydrus server' )
+		
+		self._tbmenu = wx.Menu()
+		
+		self._tbmenu.Append( wx.ID_EXIT, 'exit' )
+		
+		self.Bind( wx.EVT_TASKBAR_RIGHT_DOWN, lambda event: self.PopupMenu( self._tbmenu ) )
+		
+	

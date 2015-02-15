@@ -9,231 +9,231 @@ import urlparse
 import yaml
 
 def AddHydrusCredentialsToHeaders( credentials, request_headers ):
-    
-    if credentials.HasAccessKey():
-        
-        access_key = credentials.GetAccessKey()
-        
-        if access_key != '': request_headers[ 'Hydrus-Key' ] = access_key.encode( 'hex' )
-        
-    else: raise Exception( 'No access key!' )
-    
+	
+	if credentials.HasAccessKey():
+		
+		access_key = credentials.GetAccessKey()
+		
+		if access_key != '': request_headers[ 'Hydrus-Key' ] = access_key.encode( 'hex' )
+		
+	else: raise Exception( 'No access key!' )
+	
 def AddHydrusSessionKeyToHeaders( service_key, request_headers ):
-    
-    session_manager = HC.app.GetManager( 'hydrus_sessions' )
-    
-    session_key = session_manager.GetSessionKey( service_key )
-    
-    request_headers[ 'Cookie' ] = 'session_key=' + session_key.encode( 'hex' )
-    
+	
+	session_manager = HC.app.GetManager( 'hydrus_sessions' )
+	
+	session_key = session_manager.GetSessionKey( service_key )
+	
+	request_headers[ 'Cookie' ] = 'session_key=' + session_key.encode( 'hex' )
+	
 def AddCookiesToHeaders( cookies, request_headers ):
-    
-    request_headers[ 'Cookie' ] = '; '.join( [ k + '=' + v for ( k, v ) in cookies.items() ] )
-    
+	
+	request_headers[ 'Cookie' ] = '; '.join( [ k + '=' + v for ( k, v ) in cookies.items() ] )
+	
 def CheckHydrusVersion( service_key, service_type, response_headers ):
-    
-    service_string = HC.service_string_lookup[ service_type ]
-    
-    if 'server' not in response_headers or service_string not in response_headers[ 'server' ]:
-        
-        HC.app.Write( 'service_updates', { service_key : [ HC.ServiceUpdate( HC.SERVICE_UPDATE_ACCOUNT, HC.GetUnknownAccount() ) ] })
-        
-        raise HydrusExceptions.WrongServiceTypeException( 'Target was not a ' + service_string + '!' )
-        
-    
-    server_header = response_headers[ 'server' ]
-    
-    ( service_string_gumpf, network_version ) = server_header.split( '/' )
-    
-    network_version = int( network_version )
-    
-    if network_version != HC.NETWORK_VERSION:
-        
-        if network_version > HC.NETWORK_VERSION: message = 'Your client is out of date; please download the latest release.'
-        else: message = 'The server is out of date; please ask its admin to update to the latest release.'
-        
-        raise HydrusExceptions.NetworkVersionException( 'Network version mismatch! The server\'s network version was ' + HC.u( network_version ) + ', whereas your client\'s is ' + HC.u( HC.NETWORK_VERSION ) + '! ' + message )
-        
-    
+	
+	service_string = HC.service_string_lookup[ service_type ]
+	
+	if 'server' not in response_headers or service_string not in response_headers[ 'server' ]:
+		
+		HC.app.Write( 'service_updates', { service_key : [ HC.ServiceUpdate( HC.SERVICE_UPDATE_ACCOUNT, HC.GetUnknownAccount() ) ] })
+		
+		raise HydrusExceptions.WrongServiceTypeException( 'Target was not a ' + service_string + '!' )
+		
+	
+	server_header = response_headers[ 'server' ]
+	
+	( service_string_gumpf, network_version ) = server_header.split( '/' )
+	
+	network_version = int( network_version )
+	
+	if network_version != HC.NETWORK_VERSION:
+		
+		if network_version > HC.NETWORK_VERSION: message = 'Your client is out of date; please download the latest release.'
+		else: message = 'The server is out of date; please ask its admin to update to the latest release.'
+		
+		raise HydrusExceptions.NetworkVersionException( 'Network version mismatch! The server\'s network version was ' + HC.u( network_version ) + ', whereas your client\'s is ' + HC.u( HC.NETWORK_VERSION ) + '! ' + message )
+		
+	
 def ConvertHydrusGETArgsToQuery( request_args ):
-    
-    if 'subject_identifier' in request_args:
-        
-        subject_identifier = request_args[ 'subject_identifier' ]
-        
-        del request_args[ 'subject_identifier' ]
-        
-        data = subject_identifier.GetData()
-        
-        if subject_identifier.HasAccountKey(): request_args[ 'subject_account_key' ] = data.encode( 'hex' )
-        elif subject_identifier.HasHash(): request_args[ 'subject_hash' ] = data.encode( 'hex' )
-        if subject_identifier.HasMapping():
-            
-            ( subject_hash, subject_tag ) = data
-            
-            request_args[ 'subject_hash' ] = subject_hash.encode( 'hex' )
-            request_args[ 'subject_tag' ] = subject_tag.encode( 'hex' )
-            
-        
-    
-    if 'title' in request_args:
-        
-        request_args[ 'title' ] = request_args[ 'title' ].encode( 'hex' )
-        
-    
-    query = '&'.join( [ key + '=' + HC.u( value ) for ( key, value ) in request_args.items() ] )
-    
-    return query
-    
+	
+	if 'subject_identifier' in request_args:
+		
+		subject_identifier = request_args[ 'subject_identifier' ]
+		
+		del request_args[ 'subject_identifier' ]
+		
+		data = subject_identifier.GetData()
+		
+		if subject_identifier.HasAccountKey(): request_args[ 'subject_account_key' ] = data.encode( 'hex' )
+		elif subject_identifier.HasHash(): request_args[ 'subject_hash' ] = data.encode( 'hex' )
+		if subject_identifier.HasMapping():
+			
+			( subject_hash, subject_tag ) = data
+			
+			request_args[ 'subject_hash' ] = subject_hash.encode( 'hex' )
+			request_args[ 'subject_tag' ] = subject_tag.encode( 'hex' )
+			
+		
+	
+	if 'title' in request_args:
+		
+		request_args[ 'title' ] = request_args[ 'title' ].encode( 'hex' )
+		
+	
+	query = '&'.join( [ key + '=' + HC.u( value ) for ( key, value ) in request_args.items() ] )
+	
+	return query
+	
 def DoHydrusBandwidth( service_key, method, command, size ):
-    
-    try: service = HC.app.GetManager( 'services' ).GetService( service_key )
-    except: return
-    
-    service_type = service.GetServiceType()
-    
-    if ( service_type, method, command ) in HC.BANDWIDTH_CONSUMING_REQUESTS: HC.pubsub.pub( 'service_updates_delayed', { service_key : [ HC.ServiceUpdate( HC.SERVICE_UPDATE_REQUEST_MADE, size ) ] } )
-    
+	
+	try: service = HC.app.GetManager( 'services' ).GetService( service_key )
+	except: return
+	
+	service_type = service.GetServiceType()
+	
+	if ( service_type, method, command ) in HC.BANDWIDTH_CONSUMING_REQUESTS: HC.pubsub.pub( 'service_updates_delayed', { service_key : [ HC.ServiceUpdate( HC.SERVICE_UPDATE_REQUEST_MADE, size ) ] } )
+	
 def ParseURL( url ):
 
-    try:
-        
-        starts_http = url.startswith( 'http://' )
-        starts_https = url.startswith( 'https://' )
-        
-        if not starts_http and not starts_https: url = 'http://' + url
-        
-        parse_result = urlparse.urlparse( url )
-        
-        scheme = parse_result.scheme
-        hostname = parse_result.hostname
-        port = parse_result.port
-        
-        if hostname is None: location = None
-        else: location = ( scheme, hostname, port )
-        
-        path = parse_result.path
-        
-        # this happens when parsing 'index.html' rather than 'hostname/index.html' or '/index.html'
-        if not path.startswith( '/' ): path = '/' + path
-        
-        query = parse_result.query
-        
-    except: raise Exception( 'Could not parse that URL' )
-    
-    return ( location, path, query )
-    
+	try:
+		
+		starts_http = url.startswith( 'http://' )
+		starts_https = url.startswith( 'https://' )
+		
+		if not starts_http and not starts_https: url = 'http://' + url
+		
+		parse_result = urlparse.urlparse( url )
+		
+		scheme = parse_result.scheme
+		hostname = parse_result.hostname
+		port = parse_result.port
+		
+		if hostname is None: location = None
+		else: location = ( scheme, hostname, port )
+		
+		path = parse_result.path
+		
+		# this happens when parsing 'index.html' rather than 'hostname/index.html' or '/index.html'
+		if not path.startswith( '/' ): path = '/' + path
+		
+		query = parse_result.query
+		
+	except: raise Exception( 'Could not parse that URL' )
+	
+	return ( location, path, query )
+	
 class HTTPConnectionManager( object ):
-    
-    def __init__( self ):
-        
-        self._connections = {}
-        
-        self._lock = threading.Lock()
-        
-        threading.Thread( target = self.DAEMONMaintainConnections, name = 'Maintain Connections' ).start()
-        
-    
-    def _DoRequest( self, method, location, path, query, request_headers, body, follow_redirects = True, report_hooks = [], response_to_path = False, num_redirects_permitted = 4, long_timeout = False ):
-        
-        connection = self._GetConnection( location, long_timeout )
-        
-        try:
-            
-            if query == '': path_and_query = path
-            else: path_and_query = path + '?' + query
-            
-            with connection.lock:
-                
-                ( parsed_response, redirect_info, size_of_response, response_headers, cookies ) = connection.Request( method, path_and_query, request_headers, body, report_hooks = report_hooks, response_to_path = response_to_path )
-                
-            
-            if redirect_info is None or not follow_redirects: return ( parsed_response, size_of_response, response_headers, cookies )
-            else:
-                
-                if num_redirects_permitted == 0: raise Exception( 'Too many redirects!' )
-                
-                ( new_method, new_url ) = redirect_info
-                
-                ( new_location, new_path, new_query ) = ParseURL( new_url )
-                
-                if new_location is None: new_location = location
-                
-                return self._DoRequest( new_method, new_location, new_path, new_query, request_headers, body, follow_redirects = follow_redirects, report_hooks = report_hooks, response_to_path = response_to_path, num_redirects_permitted = num_redirects_permitted - 1, long_timeout = long_timeout )
-                
-            
-        except:
-            
-            time.sleep( 2 )
-            
-            raise
-            
-        
-    
-    def _GetConnection( self, location, long_timeout = False ):
-        
-        with self._lock:
-            
-            if long_timeout: return HTTPConnection( location, long_timeout )
-            else:
-                
-                if location not in self._connections:
-                    
-                    connection = HTTPConnection( location )
-                    
-                    self._connections[ location ] = connection
-                    
-                
-                return self._connections[ location ]
-                
-            
-        
-    
-    def Request( self, method, url, request_headers = {}, body = '', return_everything = False, return_cookies = False, report_hooks = [], response_to_path = False, long_timeout = False ):
-        
-        ( location, path, query ) = ParseURL( url )
-        
-        follow_redirects = not return_cookies
-        
-        ( response, size_of_response, response_headers, cookies ) = self._DoRequest( method, location, path, query, request_headers, body, follow_redirects = follow_redirects, report_hooks = report_hooks, response_to_path = response_to_path, long_timeout = long_timeout )
-        
-        if return_everything: return ( response, size_of_response, response_headers, cookies )
-        elif return_cookies: return ( response, cookies )
-        else: return response
-        
-    
-    def DAEMONMaintainConnections( self ):
-        
-        while True:
-            
-            if HC.shutdown: break
-            
-            last_checked = 0
-            
-            if HC.GetNow() - last_checked > 30:
-                
-                with self._lock:
-                    
-                    connections_copy = dict( self._connections )
-                    
-                    for ( location, connection ) in connections_copy.items():
-                        
-                        with connection.lock:
-                            
-                            if connection.IsStale():
-                                
-                                del self._connections[ location ]
-                            
-                        
-                    
-                
-                last_checked = HC.GetNow()
-                
-            
-            time.sleep( 1 )
-            
-        
-    
+	
+	def __init__( self ):
+		
+		self._connections = {}
+		
+		self._lock = threading.Lock()
+		
+		threading.Thread( target = self.DAEMONMaintainConnections, name = 'Maintain Connections' ).start()
+		
+	
+	def _DoRequest( self, method, location, path, query, request_headers, body, follow_redirects = True, report_hooks = [], response_to_path = False, num_redirects_permitted = 4, long_timeout = False ):
+		
+		connection = self._GetConnection( location, long_timeout )
+		
+		try:
+			
+			if query == '': path_and_query = path
+			else: path_and_query = path + '?' + query
+			
+			with connection.lock:
+				
+				( parsed_response, redirect_info, size_of_response, response_headers, cookies ) = connection.Request( method, path_and_query, request_headers, body, report_hooks = report_hooks, response_to_path = response_to_path )
+				
+			
+			if redirect_info is None or not follow_redirects: return ( parsed_response, size_of_response, response_headers, cookies )
+			else:
+				
+				if num_redirects_permitted == 0: raise Exception( 'Too many redirects!' )
+				
+				( new_method, new_url ) = redirect_info
+				
+				( new_location, new_path, new_query ) = ParseURL( new_url )
+				
+				if new_location is None: new_location = location
+				
+				return self._DoRequest( new_method, new_location, new_path, new_query, request_headers, body, follow_redirects = follow_redirects, report_hooks = report_hooks, response_to_path = response_to_path, num_redirects_permitted = num_redirects_permitted - 1, long_timeout = long_timeout )
+				
+			
+		except:
+			
+			time.sleep( 2 )
+			
+			raise
+			
+		
+	
+	def _GetConnection( self, location, long_timeout = False ):
+		
+		with self._lock:
+			
+			if long_timeout: return HTTPConnection( location, long_timeout )
+			else:
+				
+				if location not in self._connections:
+					
+					connection = HTTPConnection( location )
+					
+					self._connections[ location ] = connection
+					
+				
+				return self._connections[ location ]
+				
+			
+		
+	
+	def Request( self, method, url, request_headers = {}, body = '', return_everything = False, return_cookies = False, report_hooks = [], response_to_path = False, long_timeout = False ):
+		
+		( location, path, query ) = ParseURL( url )
+		
+		follow_redirects = not return_cookies
+		
+		( response, size_of_response, response_headers, cookies ) = self._DoRequest( method, location, path, query, request_headers, body, follow_redirects = follow_redirects, report_hooks = report_hooks, response_to_path = response_to_path, long_timeout = long_timeout )
+		
+		if return_everything: return ( response, size_of_response, response_headers, cookies )
+		elif return_cookies: return ( response, cookies )
+		else: return response
+		
+	
+	def DAEMONMaintainConnections( self ):
+		
+		while True:
+			
+			if HC.shutdown: break
+			
+			last_checked = 0
+			
+			if HC.GetNow() - last_checked > 30:
+				
+				with self._lock:
+					
+					connections_copy = dict( self._connections )
+					
+					for ( location, connection ) in connections_copy.items():
+						
+						with connection.lock:
+							
+							if connection.IsStale():
+								
+								del self._connections[ location ]
+							
+						
+					
+				
+				last_checked = HC.GetNow()
+				
+			
+			time.sleep( 1 )
+			
+		
+	
 class HTTPConnection( object ):
     
     read_block_size = 64 * 1024
@@ -499,4 +499,3 @@ class HTTPConnection( object ):
             else: raise Exception( parsed_response )
             
         
-    

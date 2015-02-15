@@ -6132,4 +6132,3 @@ class DB( ServiceDB ):
         
         if synchronous: return job.GetResult()
         
-    

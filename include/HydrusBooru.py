@@ -16,8 +16,8 @@ import yaml
   # title and all that
   # javascript
   # display header
-    # local server info
-    # how long user has access
+	# local server info
+	# how long user has access
   # top and tail html tags
   # css and so on
   # left info div

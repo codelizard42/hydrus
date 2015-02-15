@@ -48,366 +48,366 @@ FLAGS_LONE_BUTTON = wx.SizerFlags( 0 ).Border( wx.ALL, 2 ).Align( wx.ALIGN_RIGHT
 FLAGS_MIXED = wx.SizerFlags( 0 ).Border( wx.ALL, 2 ).Align( wx.ALIGN_CENTER_VERTICAL )
 
 class CaptchaControl( wx.Panel ):
-    
-    def __init__( self, parent, captcha_type, default ):
-        
-        wx.Panel.__init__( self, parent )
-        
-        self._captcha_key = default
-        
-        self._captcha_challenge = None
-        self._captcha_runs_out = 0
-        self._bitmap = wx.EmptyBitmap( 0, 0, 24 )
-        
-        self._timer = wx.Timer( self, ID_TIMER_CAPTCHA )
-        self.Bind( wx.EVT_TIMER, self.TIMEREvent, id = ID_TIMER_CAPTCHA )
-        
-        self._captcha_box_panel = ClientGUICommon.StaticBox( self, 'recaptcha' )
-        
-        self._captcha_panel = ClientGUICommon.BufferedWindow( self._captcha_box_panel, size = ( 300, 57 ) )
-        
-        self._refresh_button = wx.Button( self._captcha_box_panel, label = '' )
-        self._refresh_button.Bind( wx.EVT_BUTTON, self.EventRefreshCaptcha )
-        self._refresh_button.Disable()
-        
-        self._captcha_time_left = wx.StaticText( self._captcha_box_panel )
-        
-        self._captcha_entry = wx.TextCtrl( self._captcha_box_panel, style = wx.TE_PROCESS_ENTER )
-        self._captcha_entry.Bind( wx.EVT_KEY_DOWN, self.EventKeyDown )
-        
-        self._ready_button = wx.Button( self._captcha_box_panel, label = '' )
-        self._ready_button.Bind( wx.EVT_BUTTON, self.EventReady )
-        
-        sub_vbox = wx.BoxSizer( wx.VERTICAL )
-        
-        sub_vbox.AddF( self._refresh_button, FLAGS_EXPAND_BOTH_WAYS )
-        sub_vbox.AddF( self._captcha_time_left, FLAGS_SMALL_INDENT )
-        
-        hbox = wx.BoxSizer( wx.HORIZONTAL )
-        
-        hbox.AddF( self._captcha_panel, FLAGS_NONE )
-        hbox.AddF( sub_vbox, FLAGS_EXPAND_SIZER_BOTH_WAYS )
-        
-        hbox2 = wx.BoxSizer( wx.HORIZONTAL )
-        
-        hbox2.AddF( self._captcha_entry, FLAGS_EXPAND_BOTH_WAYS )
-        hbox2.AddF( self._ready_button, FLAGS_MIXED )
-        
-        self._captcha_box_panel.AddF( hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
-        self._captcha_box_panel.AddF( hbox2, FLAGS_EXPAND_SIZER_PERPENDICULAR )
-        
-        vbox = wx.BoxSizer( wx.VERTICAL )
-        
-        vbox.AddF( self._captcha_box_panel, FLAGS_EXPAND_BOTH_WAYS )
-        
-        self.SetSizer( vbox )
-        
-        self.Disable()
-        
-    
-    def _DrawEntry( self, entry = None ):
-        
-        if entry is None:
-            
-            self._captcha_entry.SetValue( '' )
-            self._captcha_entry.Disable()
-            
-        else: self._captcha_entry.SetValue( entry )
-        
-    
-    def _DrawMain( self ):
-        
-        dc = self._captcha_panel.GetDC()
-        
-        if self._captcha_challenge is None:
-            
-            dc.SetBackground( wx.Brush( wx.WHITE ) )
-            
-            dc.Clear()
-            
-            self._refresh_button.SetLabel( '' )
-            self._refresh_button.Disable()
-            
-            self._captcha_time_left.SetLabel( '' )
-            
-        elif self._captcha_challenge == '':
-            
-            dc.SetBackground( wx.Brush( wx.WHITE ) )
-            
-            dc.Clear()
-            
-            event = wx.NotifyEvent( CAPTCHA_FETCH_EVENT_TYPE )
-            
-            self.ProcessEvent( event )
-            
-            if event.IsAllowed():
-                
-                self._refresh_button.SetLabel( 'get captcha' )
-                self._refresh_button.Enable()
-                
-            else:
-                
-                self._refresh_button.SetLabel( 'not yet' )
-                self._refresh_button.Disable()
-                
-            
-            self._captcha_time_left.SetLabel( '' )
-            
-        else:
-            
-            wx_bmp = self._bitmap.GetWxBitmap()
-            
-            dc.DrawBitmap( wx_bmp, 0, 0 )
-            
-            wx.CallAfter( wx_bmp.Destroy )
-            
-            self._refresh_button.SetLabel( 'get new captcha' )
-            self._refresh_button.Enable()
-            
-            self._captcha_time_left.SetLabel( HC.ConvertTimestampToPrettyExpires( self._captcha_runs_out ) )
-            
-        
-        del dc
-        
-    
-    def _DrawReady( self, ready = None ):
-        
-        if ready is None:
-            
-            self._ready_button.SetLabel( '' )
-            self._ready_button.Disable()
-            
-        else:
-            
-            if ready:
-                
-                self._captcha_entry.Disable()
-                self._ready_button.SetLabel( 'edit' )
-                
-            else:
-                
-                self._captcha_entry.Enable()
-                self._ready_button.SetLabel( 'ready' )
-                
-            
-            self._ready_button.Enable()
-            
-        
-    
-    def Disable( self ):
-        
-        self._captcha_challenge = None
-        self._captcha_runs_out = 0
-        self._bitmap = wx.EmptyBitmap( 0, 0, 24 )
-        
-        self._DrawMain()
-        self._DrawEntry()
-        self._DrawReady()
-        
-        self._timer.Stop()
-        
-    
-    def Enable( self ):
-        
-        self._captcha_challenge = ''
-        self._captcha_runs_out = 0
-        self._bitmap = wx.EmptyBitmap( 0, 0, 24 )
-        
-        self._DrawMain()
-        self._DrawEntry()
-        self._DrawReady()
-        
-        self._timer.Start( 1000, wx.TIMER_CONTINUOUS )
-        
-    
-    def EnableWithValues( self, challenge, bitmap, captcha_runs_out, entry, ready ):
-        
-        if HC.GetNow() > captcha_runs_out: self.Enable()
-        else:
-            
-            self._captcha_challenge = challenge
-            self._captcha_runs_out = captcha_runs_out
-            self._bitmap = bitmap
-            
-            self._DrawMain()
-            self._DrawEntry( entry )
-            self._DrawReady( ready )
-            
-            self._timer.Start( 1000, wx.TIMER_CONTINUOUS )
-            
-        
-    
-    def EventKeyDown( self, event ):
-        
-        if event.KeyCode in ( wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER ): self.EventReady( None )
-        else: event.Skip()
-        
-    
-    def EventReady( self, event ): self._DrawReady( not self._ready_button.GetLabel() == 'edit' )
-    
-    def EventRefreshCaptcha( self, event ):
-        
-        javascript_string = HC.http.Request( HC.GET, 'http://www.google.com/recaptcha/api/challenge?k=' + self._captcha_key )
-        
-        ( trash, rest ) = javascript_string.split( 'challenge : \'', 1 )
-        
-        ( self._captcha_challenge, trash ) = rest.split( '\'', 1 )
-        
-        jpeg = HC.http.Request( HC.GET, 'http://www.google.com/recaptcha/api/image?c=' + self._captcha_challenge )
-        
-        temp_path = HC.GetTempPath()
-        
-        with open( temp_path, 'wb' ) as f: f.write( jpeg )
-        
-        self._bitmap = HydrusImageHandling.GenerateHydrusBitmap( temp_path )
-        
-        self._captcha_runs_out = HC.GetNow() + 5 * 60 - 15
-        
-        self._DrawMain()
-        self._DrawEntry( '' )
-        self._DrawReady( False )
-        
-        self._timer.Start( 1000, wx.TIMER_CONTINUOUS )
-        
-    
-    # change this to hold (current challenge, bmp, timestamp it runs out, value, whethere ready to post)
-    def GetValues( self ): return ( self._captcha_challenge, self._bitmap, self._captcha_runs_out, self._captcha_entry.GetValue(), self._ready_button.GetLabel() == 'edit' )
-    
-    def TIMEREvent( self, event ):
-        
-        if HC.GetNow() > self._captcha_runs_out: self.Enable()
-        else: self._DrawMain()
-        
-    
+	
+	def __init__( self, parent, captcha_type, default ):
+		
+		wx.Panel.__init__( self, parent )
+		
+		self._captcha_key = default
+		
+		self._captcha_challenge = None
+		self._captcha_runs_out = 0
+		self._bitmap = wx.EmptyBitmap( 0, 0, 24 )
+		
+		self._timer = wx.Timer( self, ID_TIMER_CAPTCHA )
+		self.Bind( wx.EVT_TIMER, self.TIMEREvent, id = ID_TIMER_CAPTCHA )
+		
+		self._captcha_box_panel = ClientGUICommon.StaticBox( self, 'recaptcha' )
+		
+		self._captcha_panel = ClientGUICommon.BufferedWindow( self._captcha_box_panel, size = ( 300, 57 ) )
+		
+		self._refresh_button = wx.Button( self._captcha_box_panel, label = '' )
+		self._refresh_button.Bind( wx.EVT_BUTTON, self.EventRefreshCaptcha )
+		self._refresh_button.Disable()
+		
+		self._captcha_time_left = wx.StaticText( self._captcha_box_panel )
+		
+		self._captcha_entry = wx.TextCtrl( self._captcha_box_panel, style = wx.TE_PROCESS_ENTER )
+		self._captcha_entry.Bind( wx.EVT_KEY_DOWN, self.EventKeyDown )
+		
+		self._ready_button = wx.Button( self._captcha_box_panel, label = '' )
+		self._ready_button.Bind( wx.EVT_BUTTON, self.EventReady )
+		
+		sub_vbox = wx.BoxSizer( wx.VERTICAL )
+		
+		sub_vbox.AddF( self._refresh_button, FLAGS_EXPAND_BOTH_WAYS )
+		sub_vbox.AddF( self._captcha_time_left, FLAGS_SMALL_INDENT )
+		
+		hbox = wx.BoxSizer( wx.HORIZONTAL )
+		
+		hbox.AddF( self._captcha_panel, FLAGS_NONE )
+		hbox.AddF( sub_vbox, FLAGS_EXPAND_SIZER_BOTH_WAYS )
+		
+		hbox2 = wx.BoxSizer( wx.HORIZONTAL )
+		
+		hbox2.AddF( self._captcha_entry, FLAGS_EXPAND_BOTH_WAYS )
+		hbox2.AddF( self._ready_button, FLAGS_MIXED )
+		
+		self._captcha_box_panel.AddF( hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
+		self._captcha_box_panel.AddF( hbox2, FLAGS_EXPAND_SIZER_PERPENDICULAR )
+		
+		vbox = wx.BoxSizer( wx.VERTICAL )
+		
+		vbox.AddF( self._captcha_box_panel, FLAGS_EXPAND_BOTH_WAYS )
+		
+		self.SetSizer( vbox )
+		
+		self.Disable()
+		
+	
+	def _DrawEntry( self, entry = None ):
+		
+		if entry is None:
+			
+			self._captcha_entry.SetValue( '' )
+			self._captcha_entry.Disable()
+			
+		else: self._captcha_entry.SetValue( entry )
+		
+	
+	def _DrawMain( self ):
+		
+		dc = self._captcha_panel.GetDC()
+		
+		if self._captcha_challenge is None:
+			
+			dc.SetBackground( wx.Brush( wx.WHITE ) )
+			
+			dc.Clear()
+			
+			self._refresh_button.SetLabel( '' )
+			self._refresh_button.Disable()
+			
+			self._captcha_time_left.SetLabel( '' )
+			
+		elif self._captcha_challenge == '':
+			
+			dc.SetBackground( wx.Brush( wx.WHITE ) )
+			
+			dc.Clear()
+			
+			event = wx.NotifyEvent( CAPTCHA_FETCH_EVENT_TYPE )
+			
+			self.ProcessEvent( event )
+			
+			if event.IsAllowed():
+				
+				self._refresh_button.SetLabel( 'get captcha' )
+				self._refresh_button.Enable()
+				
+			else:
+				
+				self._refresh_button.SetLabel( 'not yet' )
+				self._refresh_button.Disable()
+				
+			
+			self._captcha_time_left.SetLabel( '' )
+			
+		else:
+			
+			wx_bmp = self._bitmap.GetWxBitmap()
+			
+			dc.DrawBitmap( wx_bmp, 0, 0 )
+			
+			wx.CallAfter( wx_bmp.Destroy )
+			
+			self._refresh_button.SetLabel( 'get new captcha' )
+			self._refresh_button.Enable()
+			
+			self._captcha_time_left.SetLabel( HC.ConvertTimestampToPrettyExpires( self._captcha_runs_out ) )
+			
+		
+		del dc
+		
+	
+	def _DrawReady( self, ready = None ):
+		
+		if ready is None:
+			
+			self._ready_button.SetLabel( '' )
+			self._ready_button.Disable()
+			
+		else:
+			
+			if ready:
+				
+				self._captcha_entry.Disable()
+				self._ready_button.SetLabel( 'edit' )
+				
+			else:
+				
+				self._captcha_entry.Enable()
+				self._ready_button.SetLabel( 'ready' )
+				
+			
+			self._ready_button.Enable()
+			
+		
+	
+	def Disable( self ):
+		
+		self._captcha_challenge = None
+		self._captcha_runs_out = 0
+		self._bitmap = wx.EmptyBitmap( 0, 0, 24 )
+		
+		self._DrawMain()
+		self._DrawEntry()
+		self._DrawReady()
+		
+		self._timer.Stop()
+		
+	
+	def Enable( self ):
+		
+		self._captcha_challenge = ''
+		self._captcha_runs_out = 0
+		self._bitmap = wx.EmptyBitmap( 0, 0, 24 )
+		
+		self._DrawMain()
+		self._DrawEntry()
+		self._DrawReady()
+		
+		self._timer.Start( 1000, wx.TIMER_CONTINUOUS )
+		
+	
+	def EnableWithValues( self, challenge, bitmap, captcha_runs_out, entry, ready ):
+		
+		if HC.GetNow() > captcha_runs_out: self.Enable()
+		else:
+			
+			self._captcha_challenge = challenge
+			self._captcha_runs_out = captcha_runs_out
+			self._bitmap = bitmap
+			
+			self._DrawMain()
+			self._DrawEntry( entry )
+			self._DrawReady( ready )
+			
+			self._timer.Start( 1000, wx.TIMER_CONTINUOUS )
+			
+		
+	
+	def EventKeyDown( self, event ):
+		
+		if event.KeyCode in ( wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER ): self.EventReady( None )
+		else: event.Skip()
+		
+	
+	def EventReady( self, event ): self._DrawReady( not self._ready_button.GetLabel() == 'edit' )
+	
+	def EventRefreshCaptcha( self, event ):
+		
+		javascript_string = HC.http.Request( HC.GET, 'http://www.google.com/recaptcha/api/challenge?k=' + self._captcha_key )
+		
+		( trash, rest ) = javascript_string.split( 'challenge : \'', 1 )
+		
+		( self._captcha_challenge, trash ) = rest.split( '\'', 1 )
+		
+		jpeg = HC.http.Request( HC.GET, 'http://www.google.com/recaptcha/api/image?c=' + self._captcha_challenge )
+		
+		temp_path = HC.GetTempPath()
+		
+		with open( temp_path, 'wb' ) as f: f.write( jpeg )
+		
+		self._bitmap = HydrusImageHandling.GenerateHydrusBitmap( temp_path )
+		
+		self._captcha_runs_out = HC.GetNow() + 5 * 60 - 15
+		
+		self._DrawMain()
+		self._DrawEntry( '' )
+		self._DrawReady( False )
+		
+		self._timer.Start( 1000, wx.TIMER_CONTINUOUS )
+		
+	
+	# change this to hold (current challenge, bmp, timestamp it runs out, value, whethere ready to post)
+	def GetValues( self ): return ( self._captcha_challenge, self._bitmap, self._captcha_runs_out, self._captcha_entry.GetValue(), self._ready_button.GetLabel() == 'edit' )
+	
+	def TIMEREvent( self, event ):
+		
+		if HC.GetNow() > self._captcha_runs_out: self.Enable()
+		else: self._DrawMain()
+		
+	
 class Comment( wx.Panel ):
-    
-    def __init__( self, parent ):
-        
-        wx.Panel.__init__( self, parent )
-        
-        self._initial_comment = ''
-        
-        self._comment_panel = ClientGUICommon.StaticBox( self, 'comment' )
-        
-        self._comment = wx.TextCtrl( self._comment_panel, value = '', style = wx.TE_MULTILINE | wx.TE_READONLY, size = ( -1, 120 ) )
-        
-        self._comment_append = wx.TextCtrl( self._comment_panel, value = '', style = wx.TE_MULTILINE | wx.TE_PROCESS_ENTER, size = ( -1, 120 ) )
-        self._comment_append.Bind( wx.EVT_KEY_UP, self.EventKeyDown )
-        
-        self._comment_panel.AddF( self._comment, FLAGS_EXPAND_PERPENDICULAR )
-        self._comment_panel.AddF( self._comment_append, FLAGS_EXPAND_PERPENDICULAR )
-        
-        vbox = wx.BoxSizer( wx.VERTICAL )
-        
-        vbox.AddF( self._comment_panel, FLAGS_EXPAND_BOTH_WAYS )
-        
-        self.SetSizer( vbox )
-        
-    
-    def _SetComment( self ):
-        
-        append = self._comment_append.GetValue()
-        
-        if self._initial_comment != '' and append != '': comment = self._initial_comment + os.linesep * 2 + append
-        else: comment = self._initial_comment + append
-        
-        self._comment.SetValue( comment )
-        
-    
-    def Disable( self ):
-        
-        self._initial_comment = ''
-        
-        self._comment_append.SetValue( '' )
-        self._comment_append.Disable()
-        
-        self._SetComment()
-        
-    
-    def EnableWithValues( self, initial, append ):
-        
-        self._initial_comment = initial
-        
-        self._comment_append.SetValue( append )
-        self._comment_append.Enable()
-        
-        self._SetComment()
-        
-    
-    def GetValues( self ): return ( self._initial_comment, self._comment_append.GetValue() )
-    
-    def EventKeyDown( self, event ):
-        
-        self._SetComment()
-        
-        event.Skip()
-        
-    
+	
+	def __init__( self, parent ):
+		
+		wx.Panel.__init__( self, parent )
+		
+		self._initial_comment = ''
+		
+		self._comment_panel = ClientGUICommon.StaticBox( self, 'comment' )
+		
+		self._comment = wx.TextCtrl( self._comment_panel, value = '', style = wx.TE_MULTILINE | wx.TE_READONLY, size = ( -1, 120 ) )
+		
+		self._comment_append = wx.TextCtrl( self._comment_panel, value = '', style = wx.TE_MULTILINE | wx.TE_PROCESS_ENTER, size = ( -1, 120 ) )
+		self._comment_append.Bind( wx.EVT_KEY_UP, self.EventKeyDown )
+		
+		self._comment_panel.AddF( self._comment, FLAGS_EXPAND_PERPENDICULAR )
+		self._comment_panel.AddF( self._comment_append, FLAGS_EXPAND_PERPENDICULAR )
+		
+		vbox = wx.BoxSizer( wx.VERTICAL )
+		
+		vbox.AddF( self._comment_panel, FLAGS_EXPAND_BOTH_WAYS )
+		
+		self.SetSizer( vbox )
+		
+	
+	def _SetComment( self ):
+		
+		append = self._comment_append.GetValue()
+		
+		if self._initial_comment != '' and append != '': comment = self._initial_comment + os.linesep * 2 + append
+		else: comment = self._initial_comment + append
+		
+		self._comment.SetValue( comment )
+		
+	
+	def Disable( self ):
+		
+		self._initial_comment = ''
+		
+		self._comment_append.SetValue( '' )
+		self._comment_append.Disable()
+		
+		self._SetComment()
+		
+	
+	def EnableWithValues( self, initial, append ):
+		
+		self._initial_comment = initial
+		
+		self._comment_append.SetValue( append )
+		self._comment_append.Enable()
+		
+		self._SetComment()
+		
+	
+	def GetValues( self ): return ( self._initial_comment, self._comment_append.GetValue() )
+	
+	def EventKeyDown( self, event ):
+		
+		self._SetComment()
+		
+		event.Skip()
+		
+	
 class ManagementPanel( wx.lib.scrolledpanel.ScrolledPanel ):
-    
-    def __init__( self, parent, page, page_key, file_service_key = HC.LOCAL_FILE_SERVICE_KEY, starting_from_session = False ):
-        
-        wx.lib.scrolledpanel.ScrolledPanel.__init__( self, parent, style = wx.BORDER_NONE | wx.VSCROLL )
-        
-        self.SetupScrolling()
-        
-        #self.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_BTNFACE ) )
-        self.SetBackgroundColour( wx.WHITE )
-        
-        self._page = page
-        self._page_key = page_key
-        self._file_service_key = file_service_key
-        self._tag_service_key = HC.COMBINED_TAG_SERVICE_KEY
-        self._starting_from_session = starting_from_session
-        
-        self._paused = False
-        
-        HC.pubsub.sub( self, 'SetSearchFocus', 'set_search_focus' )
-        HC.pubsub.sub( self, 'Pause', 'pause' )
-        HC.pubsub.sub( self, 'Resume', 'resume' )
-        
-    
-    def _MakeCollect( self, sizer ):
-        
-        self._collect_by = ClientGUICommon.CheckboxCollect( self, self._page_key )
-        
-        sizer.AddF( self._collect_by, FLAGS_EXPAND_PERPENDICULAR )
-        
-    
-    def _MakeCurrentSelectionTagsBox( self, sizer ):
-        
-        tags_box = ClientGUICommon.StaticBoxSorterForListBoxTags( self, 'selection tags' )
-        
-        t = ClientGUICommon.ListBoxTagsSelectionManagementPanel( tags_box, self._page_key )
-        
-        tags_box.SetTagsBox( t )
-        
-        sizer.AddF( tags_box, FLAGS_EXPAND_BOTH_WAYS )
-        
-    
-    def _MakeSort( self, sizer ):
-        
-        self._sort_by = ClientGUICommon.ChoiceSort( self, self._page_key )
-        
-        sizer.AddF( self._sort_by, FLAGS_EXPAND_PERPENDICULAR )
-        
-    
-    def CleanBeforeDestroy( self ): pass
-    
-    def Pause( self, page_key ):
-        
-        if page_key == self._page_key: self._paused = True
-        
-    
-    def Resume( self, page_key ):
-        
-        if page_key == self._page_key: self._paused = False
-        
-    
-    def SetSearchFocus( self, page_key ): pass
-    
-    def TestAbleToClose( self ): pass
-    
+	
+	def __init__( self, parent, page, page_key, file_service_key = HC.LOCAL_FILE_SERVICE_KEY, starting_from_session = False ):
+		
+		wx.lib.scrolledpanel.ScrolledPanel.__init__( self, parent, style = wx.BORDER_NONE | wx.VSCROLL )
+		
+		self.SetupScrolling()
+		
+		#self.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_BTNFACE ) )
+		self.SetBackgroundColour( wx.WHITE )
+		
+		self._page = page
+		self._page_key = page_key
+		self._file_service_key = file_service_key
+		self._tag_service_key = HC.COMBINED_TAG_SERVICE_KEY
+		self._starting_from_session = starting_from_session
+		
+		self._paused = False
+		
+		HC.pubsub.sub( self, 'SetSearchFocus', 'set_search_focus' )
+		HC.pubsub.sub( self, 'Pause', 'pause' )
+		HC.pubsub.sub( self, 'Resume', 'resume' )
+		
+	
+	def _MakeCollect( self, sizer ):
+		
+		self._collect_by = ClientGUICommon.CheckboxCollect( self, self._page_key )
+		
+		sizer.AddF( self._collect_by, FLAGS_EXPAND_PERPENDICULAR )
+		
+	
+	def _MakeCurrentSelectionTagsBox( self, sizer ):
+		
+		tags_box = ClientGUICommon.StaticBoxSorterForListBoxTags( self, 'selection tags' )
+		
+		t = ClientGUICommon.ListBoxTagsSelectionManagementPanel( tags_box, self._page_key )
+		
+		tags_box.SetTagsBox( t )
+		
+		sizer.AddF( tags_box, FLAGS_EXPAND_BOTH_WAYS )
+		
+	
+	def _MakeSort( self, sizer ):
+		
+		self._sort_by = ClientGUICommon.ChoiceSort( self, self._page_key )
+		
+		sizer.AddF( self._sort_by, FLAGS_EXPAND_PERPENDICULAR )
+		
+	
+	def CleanBeforeDestroy( self ): pass
+	
+	def Pause( self, page_key ):
+		
+		if page_key == self._page_key: self._paused = True
+		
+	
+	def Resume( self, page_key ):
+		
+		if page_key == self._page_key: self._paused = False
+		
+	
+	def SetSearchFocus( self, page_key ): pass
+	
+	def TestAbleToClose( self ): pass
+	
 class ManagementPanelDumper( ManagementPanel ):
     
     def __init__( self, parent, page, page_key, imageboard, media_results, starting_from_session = False ):
@@ -1148,757 +1148,757 @@ class ManagementPanelDumper( ManagementPanel ):
         
     
 class ManagementPanelImport( ManagementPanel ):
-    
-    def __init__( self, parent, page, page_key, import_controller, starting_from_session = False ):
-        
-        ManagementPanel.__init__( self, parent, page, page_key, starting_from_session = starting_from_session )
-        
-        self._import_controller = import_controller
-        
-        self._import_panel = ClientGUICommon.StaticBox( self, 'current file' )
-        
-        self._import_current_info = wx.StaticText( self._import_panel )
-        self._import_gauge = ClientGUICommon.Gauge( self._import_panel )
-        
-        self._import_queue_panel = ClientGUICommon.StaticBox( self, 'import queue' )
-        
-        self._import_overall_info = wx.StaticText( self._import_queue_panel )
-        self._import_queue_info = wx.StaticText( self._import_queue_panel )
-        self._import_queue_gauge = ClientGUICommon.Gauge( self._import_queue_panel )
-        
-        self._import_pause_button = wx.Button( self._import_queue_panel, label = 'pause' )
-        self._import_pause_button.Bind( wx.EVT_BUTTON, self.EventPauseImportQueue )
-        self._import_pause_button.Disable()
-        
-        self._import_cancel_button = wx.Button( self._import_queue_panel, label = 'that\'s enough' )
-        self._import_cancel_button.Bind( wx.EVT_BUTTON, self.EventCancelImportQueue )
-        self._import_cancel_button.SetForegroundColour( ( 128, 0, 0 ) )
-        self._import_cancel_button.Disable()
-        
-        #
-        
-        vbox = wx.BoxSizer( wx.VERTICAL )
-        
-        self._MakeSort( vbox )
-        
-        self._import_panel.AddF( self._import_current_info, FLAGS_EXPAND_PERPENDICULAR )
-        self._import_panel.AddF( self._import_gauge, FLAGS_EXPAND_PERPENDICULAR )
-        
-        vbox.AddF( self._import_panel, FLAGS_EXPAND_PERPENDICULAR )
-        
-        c_p_hbox = wx.BoxSizer( wx.HORIZONTAL )
-        
-        c_p_hbox.AddF( self._import_pause_button, FLAGS_EXPAND_BOTH_WAYS )
-        c_p_hbox.AddF( self._import_cancel_button, FLAGS_EXPAND_BOTH_WAYS )
-        
-        self._import_queue_panel.AddF( self._import_overall_info, FLAGS_EXPAND_PERPENDICULAR )
-        self._import_queue_panel.AddF( self._import_queue_info, FLAGS_EXPAND_PERPENDICULAR )
-        self._import_queue_panel.AddF( self._import_queue_gauge, FLAGS_EXPAND_PERPENDICULAR )
-        self._import_queue_panel.AddF( c_p_hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
-        
-        vbox.AddF( self._import_queue_panel, FLAGS_EXPAND_PERPENDICULAR )
-        
-        self._InitExtraVboxElements( vbox )
-        
-        self._advanced_import_options = ClientGUICommon.AdvancedImportOptions( self )
-        
-        vbox.AddF( self._advanced_import_options, FLAGS_EXPAND_PERPENDICULAR )
-        
-        self._MakeCurrentSelectionTagsBox( vbox )
-        
-        self.SetSizer( vbox )
-        
-        #
-        
-        self.Bind( wx.EVT_TIMER, self.TIMEREventUpdate, id = ID_TIMER_UPDATE )
-        
-        self._timer_update = wx.Timer( self, id = ID_TIMER_UPDATE )
-        self._timer_update.Start( 100, wx.TIMER_CONTINUOUS )
-        
-    
-    def _InitExtraVboxElements( self, vbox ):
-        
-        pass
-        
-    
-    def _UpdateGUI( self ):
-        
-        import_controller_job_key = self._import_controller.GetJobKey( 'controller' )
-        import_job_key = self._import_controller.GetJobKey( 'import' )
-        import_queue_job_key = self._import_controller.GetJobKey( 'import_queue' )
-        import_queue_builder_job_key = self._import_controller.GetJobKey( 'import_queue_builder' )
-        
-        # info
-        
-        status_strings = []
-        
-        num_successful = import_controller_job_key.GetVariable( 'num_successful' )
-        num_failed = import_controller_job_key.GetVariable( 'num_failed' )
-        num_deleted = import_controller_job_key.GetVariable( 'num_deleted' )
-        num_redundant = import_controller_job_key.GetVariable( 'num_redundant' )
-        
-        if num_successful > 0: status_strings.append( HC.u( num_successful ) + ' successful' )
-        if num_failed > 0: status_strings.append( HC.u( num_failed ) + ' failed' )
-        if num_deleted > 0: status_strings.append( HC.u( num_deleted ) + ' already deleted' )
-        if num_redundant > 0: status_strings.append( HC.u( num_redundant ) + ' already in db' )
-        
-        overall_info = ', '.join( status_strings )
-        
-        if overall_info != self._import_overall_info.GetLabel(): self._import_overall_info.SetLabel( overall_info )
-        
-        import_status = import_job_key.GetVariable( 'status' )
-        
-        if import_status != self._import_current_info.GetLabel(): self._import_current_info.SetLabel( import_status )
-        
-        import_queue_status = import_queue_job_key.GetVariable( 'status' )
-        
-        if import_queue_status != self._import_queue_info.GetLabel(): self._import_queue_info.SetLabel( import_queue_status )
-        
-        # buttons
-        
-        if import_queue_job_key.IsPaused():
-            
-            if self._import_pause_button.GetLabel() != 'resume':
-                
-                self._import_pause_button.SetLabel( 'resume' )
-                self._import_pause_button.SetForegroundColour( ( 0, 128, 0 ) )
-                
-            
-        else:
-            
-            if self._import_pause_button.GetLabel() != 'pause':
-                
-                self._import_pause_button.SetLabel( 'pause' )
-                self._import_pause_button.SetForegroundColour( ( 0, 0, 0 ) )
-                
-            
-        
-        if import_queue_job_key.IsWorking() and not import_queue_job_key.IsCancelled():
-            
-            self._import_pause_button.Enable()
-            self._import_cancel_button.Enable()
-            
-        else:
-            
-            self._import_pause_button.Disable()
-            self._import_cancel_button.Disable()
-            
-        
-        # gauges
-        
-        range = import_job_key.GetVariable( 'range' )
-        
-        if range is None: self._import_gauge.Pulse()
-        else:
-            
-            value = import_job_key.GetVariable( 'value' )
-            
-            self._import_gauge.SetRange( range )
-            self._import_gauge.SetValue( value )
-            
-        
-        queue = import_queue_builder_job_key.GetVariable( 'queue' )
-        
-        if len( queue ) == 0:
-            
-            if import_queue_builder_job_key.IsWorking(): self._import_queue_gauge.Pulse()
-            else:
-                
-                self._import_queue_gauge.SetRange( 1 )
-                self._import_queue_gauge.SetValue( 0 )
-                
-            
-        else:
-            
-            queue_position = import_queue_job_key.GetVariable( 'queue_position' )
-            
-            self._import_queue_gauge.SetRange( len( queue ) )
-            self._import_queue_gauge.SetValue( queue_position )
-            
-        
-    
-    def EventCancelImportQueue( self, event ):
-        
-        import_queue_job_key = self._import_controller.GetJobKey( 'import_queue' )
-        import_queue_builder_job_key = self._import_controller.GetJobKey( 'import_queue_builder' )
-        
-        import_queue_job_key.Cancel()
-        import_queue_builder_job_key.Cancel()
-        
-        self._UpdateGUI()
-        
-    
-    def EventPauseImportQueue( self, event ):
-        
-        import_queue_job_key = self._import_controller.GetJobKey( 'import_queue' )    
-        
-        import_queue_job_key.PauseResume()
-        
-        self._UpdateGUI()
-        
-    
-    def GetAdvancedImportOptions( self ): return self._advanced_import_options.GetInfo()
-    
-    def TIMEREventUpdate( self, event ): self._UpdateGUI()
-    
-    def TestAbleToClose( self ):
-        
-        import_queue_job_key = self._import_controller.GetJobKey( 'import_queue' )
-        
-        if import_queue_job_key.IsWorking() and not import_queue_job_key.IsPaused():
-            
-            with ClientGUIDialogs.DialogYesNo( self, 'This page is still importing. Are you sure you want to close it?' ) as dlg:
-                
-                if dlg.ShowModal() == wx.ID_NO: raise Exception()
-                
-            
-        
-    
+	
+	def __init__( self, parent, page, page_key, import_controller, starting_from_session = False ):
+		
+		ManagementPanel.__init__( self, parent, page, page_key, starting_from_session = starting_from_session )
+		
+		self._import_controller = import_controller
+		
+		self._import_panel = ClientGUICommon.StaticBox( self, 'current file' )
+		
+		self._import_current_info = wx.StaticText( self._import_panel )
+		self._import_gauge = ClientGUICommon.Gauge( self._import_panel )
+		
+		self._import_queue_panel = ClientGUICommon.StaticBox( self, 'import queue' )
+		
+		self._import_overall_info = wx.StaticText( self._import_queue_panel )
+		self._import_queue_info = wx.StaticText( self._import_queue_panel )
+		self._import_queue_gauge = ClientGUICommon.Gauge( self._import_queue_panel )
+		
+		self._import_pause_button = wx.Button( self._import_queue_panel, label = 'pause' )
+		self._import_pause_button.Bind( wx.EVT_BUTTON, self.EventPauseImportQueue )
+		self._import_pause_button.Disable()
+		
+		self._import_cancel_button = wx.Button( self._import_queue_panel, label = 'that\'s enough' )
+		self._import_cancel_button.Bind( wx.EVT_BUTTON, self.EventCancelImportQueue )
+		self._import_cancel_button.SetForegroundColour( ( 128, 0, 0 ) )
+		self._import_cancel_button.Disable()
+		
+		#
+		
+		vbox = wx.BoxSizer( wx.VERTICAL )
+		
+		self._MakeSort( vbox )
+		
+		self._import_panel.AddF( self._import_current_info, FLAGS_EXPAND_PERPENDICULAR )
+		self._import_panel.AddF( self._import_gauge, FLAGS_EXPAND_PERPENDICULAR )
+		
+		vbox.AddF( self._import_panel, FLAGS_EXPAND_PERPENDICULAR )
+		
+		c_p_hbox = wx.BoxSizer( wx.HORIZONTAL )
+		
+		c_p_hbox.AddF( self._import_pause_button, FLAGS_EXPAND_BOTH_WAYS )
+		c_p_hbox.AddF( self._import_cancel_button, FLAGS_EXPAND_BOTH_WAYS )
+		
+		self._import_queue_panel.AddF( self._import_overall_info, FLAGS_EXPAND_PERPENDICULAR )
+		self._import_queue_panel.AddF( self._import_queue_info, FLAGS_EXPAND_PERPENDICULAR )
+		self._import_queue_panel.AddF( self._import_queue_gauge, FLAGS_EXPAND_PERPENDICULAR )
+		self._import_queue_panel.AddF( c_p_hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
+		
+		vbox.AddF( self._import_queue_panel, FLAGS_EXPAND_PERPENDICULAR )
+		
+		self._InitExtraVboxElements( vbox )
+		
+		self._advanced_import_options = ClientGUICommon.AdvancedImportOptions( self )
+		
+		vbox.AddF( self._advanced_import_options, FLAGS_EXPAND_PERPENDICULAR )
+		
+		self._MakeCurrentSelectionTagsBox( vbox )
+		
+		self.SetSizer( vbox )
+		
+		#
+		
+		self.Bind( wx.EVT_TIMER, self.TIMEREventUpdate, id = ID_TIMER_UPDATE )
+		
+		self._timer_update = wx.Timer( self, id = ID_TIMER_UPDATE )
+		self._timer_update.Start( 100, wx.TIMER_CONTINUOUS )
+		
+	
+	def _InitExtraVboxElements( self, vbox ):
+		
+		pass
+		
+	
+	def _UpdateGUI( self ):
+		
+		import_controller_job_key = self._import_controller.GetJobKey( 'controller' )
+		import_job_key = self._import_controller.GetJobKey( 'import' )
+		import_queue_job_key = self._import_controller.GetJobKey( 'import_queue' )
+		import_queue_builder_job_key = self._import_controller.GetJobKey( 'import_queue_builder' )
+		
+		# info
+		
+		status_strings = []
+		
+		num_successful = import_controller_job_key.GetVariable( 'num_successful' )
+		num_failed = import_controller_job_key.GetVariable( 'num_failed' )
+		num_deleted = import_controller_job_key.GetVariable( 'num_deleted' )
+		num_redundant = import_controller_job_key.GetVariable( 'num_redundant' )
+		
+		if num_successful > 0: status_strings.append( HC.u( num_successful ) + ' successful' )
+		if num_failed > 0: status_strings.append( HC.u( num_failed ) + ' failed' )
+		if num_deleted > 0: status_strings.append( HC.u( num_deleted ) + ' already deleted' )
+		if num_redundant > 0: status_strings.append( HC.u( num_redundant ) + ' already in db' )
+		
+		overall_info = ', '.join( status_strings )
+		
+		if overall_info != self._import_overall_info.GetLabel(): self._import_overall_info.SetLabel( overall_info )
+		
+		import_status = import_job_key.GetVariable( 'status' )
+		
+		if import_status != self._import_current_info.GetLabel(): self._import_current_info.SetLabel( import_status )
+		
+		import_queue_status = import_queue_job_key.GetVariable( 'status' )
+		
+		if import_queue_status != self._import_queue_info.GetLabel(): self._import_queue_info.SetLabel( import_queue_status )
+		
+		# buttons
+		
+		if import_queue_job_key.IsPaused():
+			
+			if self._import_pause_button.GetLabel() != 'resume':
+				
+				self._import_pause_button.SetLabel( 'resume' )
+				self._import_pause_button.SetForegroundColour( ( 0, 128, 0 ) )
+				
+			
+		else:
+			
+			if self._import_pause_button.GetLabel() != 'pause':
+				
+				self._import_pause_button.SetLabel( 'pause' )
+				self._import_pause_button.SetForegroundColour( ( 0, 0, 0 ) )
+				
+			
+		
+		if import_queue_job_key.IsWorking() and not import_queue_job_key.IsCancelled():
+			
+			self._import_pause_button.Enable()
+			self._import_cancel_button.Enable()
+			
+		else:
+			
+			self._import_pause_button.Disable()
+			self._import_cancel_button.Disable()
+			
+		
+		# gauges
+		
+		range = import_job_key.GetVariable( 'range' )
+		
+		if range is None: self._import_gauge.Pulse()
+		else:
+			
+			value = import_job_key.GetVariable( 'value' )
+			
+			self._import_gauge.SetRange( range )
+			self._import_gauge.SetValue( value )
+			
+		
+		queue = import_queue_builder_job_key.GetVariable( 'queue' )
+		
+		if len( queue ) == 0:
+			
+			if import_queue_builder_job_key.IsWorking(): self._import_queue_gauge.Pulse()
+			else:
+				
+				self._import_queue_gauge.SetRange( 1 )
+				self._import_queue_gauge.SetValue( 0 )
+				
+			
+		else:
+			
+			queue_position = import_queue_job_key.GetVariable( 'queue_position' )
+			
+			self._import_queue_gauge.SetRange( len( queue ) )
+			self._import_queue_gauge.SetValue( queue_position )
+			
+		
+	
+	def EventCancelImportQueue( self, event ):
+		
+		import_queue_job_key = self._import_controller.GetJobKey( 'import_queue' )
+		import_queue_builder_job_key = self._import_controller.GetJobKey( 'import_queue_builder' )
+		
+		import_queue_job_key.Cancel()
+		import_queue_builder_job_key.Cancel()
+		
+		self._UpdateGUI()
+		
+	
+	def EventPauseImportQueue( self, event ):
+		
+		import_queue_job_key = self._import_controller.GetJobKey( 'import_queue' )	
+		
+		import_queue_job_key.PauseResume()
+		
+		self._UpdateGUI()
+		
+	
+	def GetAdvancedImportOptions( self ): return self._advanced_import_options.GetInfo()
+	
+	def TIMEREventUpdate( self, event ): self._UpdateGUI()
+	
+	def TestAbleToClose( self ):
+		
+		import_queue_job_key = self._import_controller.GetJobKey( 'import_queue' )
+		
+		if import_queue_job_key.IsWorking() and not import_queue_job_key.IsPaused():
+			
+			with ClientGUIDialogs.DialogYesNo( self, 'This page is still importing. Are you sure you want to close it?' ) as dlg:
+				
+				if dlg.ShowModal() == wx.ID_NO: raise Exception()
+				
+			
+		
+	
 class ManagementPanelImports( ManagementPanelImport ):
-    
-    def _InitExtraVboxElements( self, vbox ):
-        
-        ManagementPanelImport._InitExtraVboxElements( self, vbox )
-        
-        #
-        
-        self._building_import_queue_panel = ClientGUICommon.StaticBox( self, 'building import queue' )
-        
-        self._building_import_queue_info = wx.StaticText( self._building_import_queue_panel )
-        
-        self._building_import_queue_pause_button = wx.Button( self._building_import_queue_panel, label = 'pause' )
-        self._building_import_queue_pause_button.Bind( wx.EVT_BUTTON, self.EventPauseImportQueueBuilder )
-        self._building_import_queue_pause_button.Disable()
-        
-        self._building_import_queue_cancel_button = wx.Button( self._building_import_queue_panel, label = 'that\'s enough' )
-        self._building_import_queue_cancel_button.Bind( wx.EVT_BUTTON, self.EventCancelImportQueueBuilder )
-        self._building_import_queue_cancel_button.SetForegroundColour( ( 128, 0, 0 ) )
-        self._building_import_queue_cancel_button.Disable()
-        
-        queue_pause_buttons_hbox = wx.BoxSizer( wx.HORIZONTAL )
-        
-        queue_pause_buttons_hbox.AddF( self._building_import_queue_pause_button, FLAGS_EXPAND_BOTH_WAYS )
-        queue_pause_buttons_hbox.AddF( self._building_import_queue_cancel_button, FLAGS_EXPAND_BOTH_WAYS )
-        
-        self._building_import_queue_panel.AddF( self._building_import_queue_info, FLAGS_EXPAND_PERPENDICULAR )
-        self._building_import_queue_panel.AddF( queue_pause_buttons_hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
-        
-        vbox.AddF( self._building_import_queue_panel, FLAGS_EXPAND_PERPENDICULAR )
-        
-        #
-        
-        self._pending_import_queues_panel = ClientGUICommon.StaticBox( self, 'pending imports' )
-        
-        self._pending_import_queues_listbox = wx.ListBox( self._pending_import_queues_panel, size = ( -1, 200 ) )
-        
-        self._new_queue_input = wx.TextCtrl( self._pending_import_queues_panel, style = wx.TE_PROCESS_ENTER )
-        self._new_queue_input.Bind( wx.EVT_KEY_DOWN, self.EventKeyDown )
-        
-        self._up = wx.Button( self._pending_import_queues_panel, label = u'\u2191' )
-        self._up.Bind( wx.EVT_BUTTON, self.EventUp )
-        
-        self._remove = wx.Button( self._pending_import_queues_panel, label = 'X' )
-        self._remove.Bind( wx.EVT_BUTTON, self.EventRemove )
-        
-        self._down = wx.Button( self._pending_import_queues_panel, label = u'\u2193' )
-        self._down.Bind( wx.EVT_BUTTON, self.EventDown )
-        
-        queue_buttons_vbox = wx.BoxSizer( wx.VERTICAL )
-        
-        queue_buttons_vbox.AddF( self._up, FLAGS_MIXED )
-        queue_buttons_vbox.AddF( self._remove, FLAGS_MIXED )
-        queue_buttons_vbox.AddF( self._down, FLAGS_MIXED )
-        
-        queue_hbox = wx.BoxSizer( wx.HORIZONTAL )
-        
-        queue_hbox.AddF( self._pending_import_queues_listbox, FLAGS_EXPAND_BOTH_WAYS )
-        queue_hbox.AddF( queue_buttons_vbox, FLAGS_MIXED )
-        
-        self._pending_import_queues_panel.AddF( queue_hbox, FLAGS_EXPAND_SIZER_BOTH_WAYS )
-        self._pending_import_queues_panel.AddF( self._new_queue_input, FLAGS_EXPAND_PERPENDICULAR )
-        
-        vbox.AddF( self._pending_import_queues_panel, FLAGS_EXPAND_BOTH_WAYS )
-        
-        wx.CallAfter( self._new_queue_input.SelectAll ) # to select the 'artist username' init gumpf
-        
-    
-    def _UpdateGUI( self ):
-        
-        ManagementPanelImport._UpdateGUI( self )
-        
-        import_job_key = self._import_controller.GetJobKey( 'import' )
-        import_queue_job_key = self._import_controller.GetJobKey( 'import_queue' )
-        import_queue_builder_job_key = self._import_controller.GetJobKey( 'import_queue_builder' )
-        
-        # info
-        
-        import_queue_builder_status = import_queue_builder_job_key.GetVariable( 'status' )
-        
-        if import_queue_builder_status != self._building_import_queue_info.GetLabel(): self._building_import_queue_info.SetLabel( import_queue_builder_status )
-        
-        # buttons
-        
-        #
-        
-        if import_queue_builder_job_key.IsPaused():
-            
-            if self._building_import_queue_pause_button.GetLabel() != 'resume':
-                
-                self._building_import_queue_pause_button.SetLabel( 'resume' )
-                self._building_import_queue_pause_button.SetForegroundColour( ( 0, 128, 0 ) )
-                
-            
-        else:
-            
-            if self._building_import_queue_pause_button.GetLabel() != 'pause':
-                
-                self._building_import_queue_pause_button.SetLabel( 'pause' )
-                self._building_import_queue_pause_button.SetForegroundColour( ( 0, 0, 0 ) )
-                
-            
-        
-        if import_queue_builder_job_key.IsWorking() and not import_queue_job_key.IsCancelled():
-            
-            self._building_import_queue_pause_button.Enable()
-            self._building_import_queue_cancel_button.Enable()
-            
-        else:
-            
-            self._building_import_queue_pause_button.Disable()
-            self._building_import_queue_cancel_button.Disable()
-            
-        
-        # gauge
-        
-        range = import_job_key.GetVariable( 'range' )
-        
-        if range is None: self._import_gauge.Pulse()
-        else:
-            
-            value = import_job_key.GetVariable( 'value' )
-            
-            self._import_gauge.SetRange( range )
-            self._import_gauge.SetValue( value )
-            
-        
-        # pending import queues
-        
-        pending_import_queue_jobs = self._import_controller.GetPendingImportQueueJobs()
-        
-        if pending_import_queue_jobs != self._pending_import_queues_listbox.GetItems():
-            
-            self._pending_import_queues_listbox.SetItems( pending_import_queue_jobs )
-            
-        
-    
-    def EventCancelImportQueueBuilder( self, event ):
-        
-        import_queue_builder_job_key = self._import_controller.GetJobKey( 'import_queue_builder' )
-        
-        import_queue_builder_job_key.Cancel()
-        
-        self._UpdateGUI()
-        
-    
-    def EventKeyDown( self, event ):
-        
-        if event.KeyCode in ( wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER ):
-            
-            s = self._new_queue_input.GetValue()
-            
-            if s != '':
-                
-                self._import_controller.PendImportQueueJob( s )
-                
-                self._UpdateGUI()
-                
-                self._new_queue_input.SetValue( '' )
-                
-            
-        else: event.Skip()
-        
-    
-    def EventPauseImportQueueBuilder( self, event ):
-        
-        import_queue_builder_job_key = self._import_controller.GetJobKey( 'import_queue_builder' )
-        
-        import_queue_builder_job_key.PauseResume()
-        
-        self._UpdateGUI()
-        
-    
-    def EventUp( self, event ):
-        
-        selection = self._pending_import_queues_listbox.GetSelection()
-        
-        if selection != wx.NOT_FOUND:
-            
-            if selection > 0:
-                
-                s = self._pending_import_queues_listbox.GetString( selection )
-                
-                self._import_controller.MovePendingImportQueueJobUp( s )
-                
-                self._UpdateGUI()
-                
-                self._pending_import_queues_listbox.Select( selection - 1 )
-                
-            
-        
-    
-    def EventRemove( self, event ):
-        
-        selection = self._pending_import_queues_listbox.GetSelection()
-        
-        if selection != wx.NOT_FOUND:
-            
-            s = self._pending_import_queues_listbox.GetString( selection )
-            
-            self._import_controller.RemovePendingImportQueueJob( s )
-            
-            self._UpdateGUI()
-            
-        
-    
-    def EventDown( self, event ):
-        
-        selection = self._pending_import_queues_listbox.GetSelection()
-        
-        if selection != wx.NOT_FOUND:
-            
-            if selection + 1 < self._pending_import_queues_listbox.GetCount():
-                
-                s = self._pending_import_queues_listbox.GetString( selection )
-                
-                self._import_controller.MovePendingImportQueueJobDown( s )
-                
-                self._UpdateGUI()
-                
-                self._pending_import_queues_listbox.Select( selection + 1 )
-                
-            
-        
-    
-    def SetSearchFocus( self, page_key ):
-        
-        if page_key == self._page_key: self._new_queue_input.SetFocus()
-        
-    
+	
+	def _InitExtraVboxElements( self, vbox ):
+		
+		ManagementPanelImport._InitExtraVboxElements( self, vbox )
+		
+		#
+		
+		self._building_import_queue_panel = ClientGUICommon.StaticBox( self, 'building import queue' )
+		
+		self._building_import_queue_info = wx.StaticText( self._building_import_queue_panel )
+		
+		self._building_import_queue_pause_button = wx.Button( self._building_import_queue_panel, label = 'pause' )
+		self._building_import_queue_pause_button.Bind( wx.EVT_BUTTON, self.EventPauseImportQueueBuilder )
+		self._building_import_queue_pause_button.Disable()
+		
+		self._building_import_queue_cancel_button = wx.Button( self._building_import_queue_panel, label = 'that\'s enough' )
+		self._building_import_queue_cancel_button.Bind( wx.EVT_BUTTON, self.EventCancelImportQueueBuilder )
+		self._building_import_queue_cancel_button.SetForegroundColour( ( 128, 0, 0 ) )
+		self._building_import_queue_cancel_button.Disable()
+		
+		queue_pause_buttons_hbox = wx.BoxSizer( wx.HORIZONTAL )
+		
+		queue_pause_buttons_hbox.AddF( self._building_import_queue_pause_button, FLAGS_EXPAND_BOTH_WAYS )
+		queue_pause_buttons_hbox.AddF( self._building_import_queue_cancel_button, FLAGS_EXPAND_BOTH_WAYS )
+		
+		self._building_import_queue_panel.AddF( self._building_import_queue_info, FLAGS_EXPAND_PERPENDICULAR )
+		self._building_import_queue_panel.AddF( queue_pause_buttons_hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
+		
+		vbox.AddF( self._building_import_queue_panel, FLAGS_EXPAND_PERPENDICULAR )
+		
+		#
+		
+		self._pending_import_queues_panel = ClientGUICommon.StaticBox( self, 'pending imports' )
+		
+		self._pending_import_queues_listbox = wx.ListBox( self._pending_import_queues_panel, size = ( -1, 200 ) )
+		
+		self._new_queue_input = wx.TextCtrl( self._pending_import_queues_panel, style = wx.TE_PROCESS_ENTER )
+		self._new_queue_input.Bind( wx.EVT_KEY_DOWN, self.EventKeyDown )
+		
+		self._up = wx.Button( self._pending_import_queues_panel, label = u'\u2191' )
+		self._up.Bind( wx.EVT_BUTTON, self.EventUp )
+		
+		self._remove = wx.Button( self._pending_import_queues_panel, label = 'X' )
+		self._remove.Bind( wx.EVT_BUTTON, self.EventRemove )
+		
+		self._down = wx.Button( self._pending_import_queues_panel, label = u'\u2193' )
+		self._down.Bind( wx.EVT_BUTTON, self.EventDown )
+		
+		queue_buttons_vbox = wx.BoxSizer( wx.VERTICAL )
+		
+		queue_buttons_vbox.AddF( self._up, FLAGS_MIXED )
+		queue_buttons_vbox.AddF( self._remove, FLAGS_MIXED )
+		queue_buttons_vbox.AddF( self._down, FLAGS_MIXED )
+		
+		queue_hbox = wx.BoxSizer( wx.HORIZONTAL )
+		
+		queue_hbox.AddF( self._pending_import_queues_listbox, FLAGS_EXPAND_BOTH_WAYS )
+		queue_hbox.AddF( queue_buttons_vbox, FLAGS_MIXED )
+		
+		self._pending_import_queues_panel.AddF( queue_hbox, FLAGS_EXPAND_SIZER_BOTH_WAYS )
+		self._pending_import_queues_panel.AddF( self._new_queue_input, FLAGS_EXPAND_PERPENDICULAR )
+		
+		vbox.AddF( self._pending_import_queues_panel, FLAGS_EXPAND_BOTH_WAYS )
+		
+		wx.CallAfter( self._new_queue_input.SelectAll ) # to select the 'artist username' init gumpf
+		
+	
+	def _UpdateGUI( self ):
+		
+		ManagementPanelImport._UpdateGUI( self )
+		
+		import_job_key = self._import_controller.GetJobKey( 'import' )
+		import_queue_job_key = self._import_controller.GetJobKey( 'import_queue' )
+		import_queue_builder_job_key = self._import_controller.GetJobKey( 'import_queue_builder' )
+		
+		# info
+		
+		import_queue_builder_status = import_queue_builder_job_key.GetVariable( 'status' )
+		
+		if import_queue_builder_status != self._building_import_queue_info.GetLabel(): self._building_import_queue_info.SetLabel( import_queue_builder_status )
+		
+		# buttons
+		
+		#
+		
+		if import_queue_builder_job_key.IsPaused():
+			
+			if self._building_import_queue_pause_button.GetLabel() != 'resume':
+				
+				self._building_import_queue_pause_button.SetLabel( 'resume' )
+				self._building_import_queue_pause_button.SetForegroundColour( ( 0, 128, 0 ) )
+				
+			
+		else:
+			
+			if self._building_import_queue_pause_button.GetLabel() != 'pause':
+				
+				self._building_import_queue_pause_button.SetLabel( 'pause' )
+				self._building_import_queue_pause_button.SetForegroundColour( ( 0, 0, 0 ) )
+				
+			
+		
+		if import_queue_builder_job_key.IsWorking() and not import_queue_job_key.IsCancelled():
+			
+			self._building_import_queue_pause_button.Enable()
+			self._building_import_queue_cancel_button.Enable()
+			
+		else:
+			
+			self._building_import_queue_pause_button.Disable()
+			self._building_import_queue_cancel_button.Disable()
+			
+		
+		# gauge
+		
+		range = import_job_key.GetVariable( 'range' )
+		
+		if range is None: self._import_gauge.Pulse()
+		else:
+			
+			value = import_job_key.GetVariable( 'value' )
+			
+			self._import_gauge.SetRange( range )
+			self._import_gauge.SetValue( value )
+			
+		
+		# pending import queues
+		
+		pending_import_queue_jobs = self._import_controller.GetPendingImportQueueJobs()
+		
+		if pending_import_queue_jobs != self._pending_import_queues_listbox.GetItems():
+			
+			self._pending_import_queues_listbox.SetItems( pending_import_queue_jobs )
+			
+		
+	
+	def EventCancelImportQueueBuilder( self, event ):
+		
+		import_queue_builder_job_key = self._import_controller.GetJobKey( 'import_queue_builder' )
+		
+		import_queue_builder_job_key.Cancel()
+		
+		self._UpdateGUI()
+		
+	
+	def EventKeyDown( self, event ):
+		
+		if event.KeyCode in ( wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER ):
+			
+			s = self._new_queue_input.GetValue()
+			
+			if s != '':
+				
+				self._import_controller.PendImportQueueJob( s )
+				
+				self._UpdateGUI()
+				
+				self._new_queue_input.SetValue( '' )
+				
+			
+		else: event.Skip()
+		
+	
+	def EventPauseImportQueueBuilder( self, event ):
+		
+		import_queue_builder_job_key = self._import_controller.GetJobKey( 'import_queue_builder' )
+		
+		import_queue_builder_job_key.PauseResume()
+		
+		self._UpdateGUI()
+		
+	
+	def EventUp( self, event ):
+		
+		selection = self._pending_import_queues_listbox.GetSelection()
+		
+		if selection != wx.NOT_FOUND:
+			
+			if selection > 0:
+				
+				s = self._pending_import_queues_listbox.GetString( selection )
+				
+				self._import_controller.MovePendingImportQueueJobUp( s )
+				
+				self._UpdateGUI()
+				
+				self._pending_import_queues_listbox.Select( selection - 1 )
+				
+			
+		
+	
+	def EventRemove( self, event ):
+		
+		selection = self._pending_import_queues_listbox.GetSelection()
+		
+		if selection != wx.NOT_FOUND:
+			
+			s = self._pending_import_queues_listbox.GetString( selection )
+			
+			self._import_controller.RemovePendingImportQueueJob( s )
+			
+			self._UpdateGUI()
+			
+		
+	
+	def EventDown( self, event ):
+		
+		selection = self._pending_import_queues_listbox.GetSelection()
+		
+		if selection != wx.NOT_FOUND:
+			
+			if selection + 1 < self._pending_import_queues_listbox.GetCount():
+				
+				s = self._pending_import_queues_listbox.GetString( selection )
+				
+				self._import_controller.MovePendingImportQueueJobDown( s )
+				
+				self._UpdateGUI()
+				
+				self._pending_import_queues_listbox.Select( selection + 1 )
+				
+			
+		
+	
+	def SetSearchFocus( self, page_key ):
+		
+		if page_key == self._page_key: self._new_queue_input.SetFocus()
+		
+	
 class ManagementPanelImportsGallery( ManagementPanelImports ):
-    
-    def __init__( self, parent, page, page_key, import_controller, name, namespaces, ato, initial_search_value, starting_from_session = False ):
-        
-        self._name = name
-        self._namespaces = namespaces
-        self._ato = ato
-        self._initial_search_value = initial_search_value
-        
-        ManagementPanelImports.__init__( self, parent, page, page_key, import_controller, starting_from_session = starting_from_session )
-        
-    
-    def _InitExtraVboxElements( self, vbox ):
-        
-        ManagementPanelImports._InitExtraVboxElements( self, vbox )
-        
-        #
-        
-        self._new_queue_input.SetValue( self._initial_search_value )
-        
-        #
-        
-        self._advanced_tag_options = ClientGUICommon.AdvancedTagOptions( self, self._namespaces )
-        self._advanced_tag_options.SetInfo( self._ato )
-        
-        vbox.AddF( self._advanced_tag_options, FLAGS_EXPAND_PERPENDICULAR )
-        
-    
-    def GetAdvancedTagOptions( self ): return self._advanced_tag_options.GetInfo()
-    
+	
+	def __init__( self, parent, page, page_key, import_controller, name, namespaces, ato, initial_search_value, starting_from_session = False ):
+		
+		self._name = name
+		self._namespaces = namespaces
+		self._ato = ato
+		self._initial_search_value = initial_search_value
+		
+		ManagementPanelImports.__init__( self, parent, page, page_key, import_controller, starting_from_session = starting_from_session )
+		
+	
+	def _InitExtraVboxElements( self, vbox ):
+		
+		ManagementPanelImports._InitExtraVboxElements( self, vbox )
+		
+		#
+		
+		self._new_queue_input.SetValue( self._initial_search_value )
+		
+		#
+		
+		self._advanced_tag_options = ClientGUICommon.AdvancedTagOptions( self, self._namespaces )
+		self._advanced_tag_options.SetInfo( self._ato )
+		
+		vbox.AddF( self._advanced_tag_options, FLAGS_EXPAND_PERPENDICULAR )
+		
+	
+	def GetAdvancedTagOptions( self ): return self._advanced_tag_options.GetInfo()
+	
 class ManagementPanelImportsGalleryHentaiFoundry( ManagementPanelImportsGallery ):
-    
-    def _InitExtraVboxElements( self, vbox ):
-        
-        ManagementPanelImportsGallery._InitExtraVboxElements( self, vbox )
-        
-        self._advanced_hentai_foundry_options = ClientGUICommon.AdvancedHentaiFoundryOptions( self )
-        
-        vbox.AddF( self._advanced_hentai_foundry_options, FLAGS_EXPAND_PERPENDICULAR )
-        
-    
-    def GetAdvancedHentaiFoundryOptions( self ): return self._advanced_hentai_foundry_options.GetInfo()
-    
+	
+	def _InitExtraVboxElements( self, vbox ):
+		
+		ManagementPanelImportsGallery._InitExtraVboxElements( self, vbox )
+		
+		self._advanced_hentai_foundry_options = ClientGUICommon.AdvancedHentaiFoundryOptions( self )
+		
+		vbox.AddF( self._advanced_hentai_foundry_options, FLAGS_EXPAND_PERPENDICULAR )
+		
+	
+	def GetAdvancedHentaiFoundryOptions( self ): return self._advanced_hentai_foundry_options.GetInfo()
+	
 class ManagementPanelImportsURL( ManagementPanelImports ):
-    
-    def _InitExtraVboxElements( self, vbox ):
-        
-        ManagementPanelImports._InitExtraVboxElements( self, vbox )
-        
-        self._building_import_queue_pause_button.Hide()
-        self._building_import_queue_cancel_button.Hide()
-        
-    
+	
+	def _InitExtraVboxElements( self, vbox ):
+		
+		ManagementPanelImports._InitExtraVboxElements( self, vbox )
+		
+		self._building_import_queue_pause_button.Hide()
+		self._building_import_queue_cancel_button.Hide()
+		
+	
 class ManagementPanelImportHDD( ManagementPanelImport ):
-    
-    def __init__( self, *args, **kwargs ):
-        
-        ManagementPanelImport.__init__( self, *args, **kwargs )
-        
-        self._advanced_import_options.Hide()
-        
-    
-    def _InitExtraVboxElements( self, vbox ):
-        
-        ManagementPanelImport._InitExtraVboxElements( self, vbox )
-        
-        self._import_gauge.Hide()
-        self._import_cancel_button.Hide()
-        
-    
+	
+	def __init__( self, *args, **kwargs ):
+		
+		ManagementPanelImport.__init__( self, *args, **kwargs )
+		
+		self._advanced_import_options.Hide()
+		
+	
+	def _InitExtraVboxElements( self, vbox ):
+		
+		ManagementPanelImport._InitExtraVboxElements( self, vbox )
+		
+		self._import_gauge.Hide()
+		self._import_cancel_button.Hide()
+		
+	
 class ManagementPanelImportThreadWatcher( ManagementPanelImport ):
-    
-    def _InitExtraVboxElements( self, vbox ):
-        
-        ManagementPanelImport._InitExtraVboxElements( self, vbox )
-        
-        self._import_cancel_button.Hide()
-        
-        #
-        
-        self._thread_panel = ClientGUICommon.StaticBox( self, 'thread checker' )
-        
-        self._thread_info = wx.StaticText( self._thread_panel, label = 'enter a 4chan thread url' )
-        
-        ( times_to_check, check_period ) = HC.options[ 'thread_checker_timings' ]
-        
-        self._thread_times_to_check = wx.SpinCtrl( self._thread_panel, size = ( 60, -1 ), min = 0, max = 100 )
-        self._thread_times_to_check.SetValue( times_to_check )
-        self._thread_times_to_check.Bind( wx.EVT_SPINCTRL, self.EventThreadVariable )
-        
-        self._thread_check_period = wx.SpinCtrl( self._thread_panel, size = ( 100, -1 ), min = 30, max = 86400 )
-        self._thread_check_period.SetValue( check_period )
-        self._thread_check_period.Bind( wx.EVT_SPINCTRL, self.EventThreadVariable )
-        
-        self._thread_input = wx.TextCtrl( self._thread_panel, style = wx.TE_PROCESS_ENTER )
-        self._thread_input.Bind( wx.EVT_KEY_DOWN, self.EventKeyDown )
-        
-        self._thread_pause_button = wx.Button( self._thread_panel, label = 'pause' )
-        self._thread_pause_button.Bind( wx.EVT_BUTTON, self.EventPauseImportQueueBuilder )
-        
-        self._thread_manual_refresh_button = wx.Button( self._thread_panel, label = 'check now' )
-        self._thread_manual_refresh_button.Bind( wx.EVT_BUTTON, self.EventManualRefresh )
-        
-        hbox = wx.BoxSizer( wx.HORIZONTAL )
-        
-        hbox.AddF( wx.StaticText( self._thread_panel, label = 'check ' ), FLAGS_MIXED )
-        hbox.AddF( self._thread_times_to_check, FLAGS_MIXED )
-        hbox.AddF( wx.StaticText( self._thread_panel, label = ' more times, every ' ), FLAGS_MIXED )
-        hbox.AddF( self._thread_check_period, FLAGS_MIXED )
-        hbox.AddF( wx.StaticText( self._thread_panel, label = ' seconds' ), FLAGS_MIXED )
-        
-        button_box = wx.BoxSizer( wx.HORIZONTAL )
-        
-        button_box.AddF( self._thread_pause_button, FLAGS_EXPAND_BOTH_WAYS )
-        button_box.AddF( self._thread_manual_refresh_button, FLAGS_EXPAND_BOTH_WAYS )
-        
-        self._thread_panel.AddF( self._thread_info, FLAGS_EXPAND_PERPENDICULAR )
-        self._thread_panel.AddF( self._thread_input, FLAGS_EXPAND_PERPENDICULAR )
-        self._thread_panel.AddF( hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
-        self._thread_panel.AddF( button_box, FLAGS_EXPAND_SIZER_PERPENDICULAR )
-        
-        vbox.AddF( self._thread_panel, FLAGS_EXPAND_SIZER_PERPENDICULAR )
-        
-        #
-        
-        self._advanced_tag_options = ClientGUICommon.AdvancedTagOptions( self, [ 'filename' ] )
-        
-        vbox.AddF( self._advanced_tag_options, FLAGS_EXPAND_PERPENDICULAR )
-        
-    
-    def _SetThreadVariables( self ):
-        
-        import_queue_builder_job_key = self._import_controller.GetJobKey( 'import_queue_builder' )
-        
-        thread_time = self._thread_check_period.GetValue()
-        thread_times_to_check = self._thread_times_to_check.GetValue()
-        
-        import_queue_builder_job_key.SetVariable( 'manual_refresh', False )
-        import_queue_builder_job_key.SetVariable( 'thread_time', thread_time )
-        import_queue_builder_job_key.SetVariable( 'thread_times_to_check', thread_times_to_check )
-        
-    
-    def _UpdateGUI( self ):
-        
-        ManagementPanelImport._UpdateGUI( self )
-        
-        import_job_key = self._import_controller.GetJobKey( 'import' )
-        import_queue_builder_job_key = self._import_controller.GetJobKey( 'import_queue_builder' )
-        
-        # thread_info
-        
-        status = import_queue_builder_job_key.GetVariable( 'status' )
-        
-        if status != self._thread_info.GetLabel(): self._thread_info.SetLabel( status )
-        
-        # button
-        
-        if import_queue_builder_job_key.IsWorking():
-            
-            self._thread_pause_button.Enable()
-            
-            if import_queue_builder_job_key.IsPaused():
-                
-                self._thread_pause_button.SetLabel( 'resume' )
-                self._thread_pause_button.SetForegroundColour( ( 0, 128, 0 ) )
-                
-            else:
-                
-                self._thread_pause_button.SetLabel( 'pause' )
-                self._thread_pause_button.SetForegroundColour( ( 0, 0, 0 ) )
-                
-            
-        else: self._thread_pause_button.Disable()
-        
-        # times to check
-        
-        try:
-            
-            thread_times_to_check = import_queue_builder_job_key.GetVariable( 'thread_times_to_check' )
-            
-            self._thread_times_to_check.SetValue( thread_times_to_check )
-            
-        except: self._SetThreadVariables()
-        
-        try:
-            
-            manual_refresh = import_queue_builder_job_key.GetVariable( 'manual_refresh' )
-            
-            if not import_queue_builder_job_key.IsWorking() or manual_refresh: self._thread_manual_refresh_button.Disable()
-            else: self._thread_manual_refresh_button.Enable()
-            
-        except: self._SetThreadVariables()
-        
-    
-    def EventKeyDown( self, event ):
-        
-        if event.KeyCode in ( wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER ):
-            
-            self._SetThreadVariables()
-            
-            url = self._thread_input.GetValue()
-            
-            if url == '': return
-            
-            try:
-                
-                try:
-                    
-                    parse_result = urlparse.urlparse( url )
-                    
-                    host = parse_result.hostname
-                    
-                    request = parse_result.path
-                    
-                    if host is None or request is None: raise Exception()
-                    
-                except: raise Exception ( 'Could not understand that url!' )
-                
-                is_4chan = '4chan.org' in host
-                is_8chan = '8chan.co' in host or '8ch.net' in host
-                
-                if not ( is_4chan or is_8chan ): raise Exception( 'This only works for 4chan and 8chan right now!' )
-                
-                try:
-                    
-                    # 4chan
-                    # /asp/thread/382059/post-your-favourite-martial-arts-video-if-martin
-                    # http://a.4cdn.org/asp/thread/382059.json
-                    # http://i.4cdn.org/asp/ for images
-                    
-                    # 8chan
-                    # /v/res/406061.html
-                    # http://8chan.co/v/res/406061.json
-                    # http://8chan.co/v/src/ for images
-                    
-                    if is_4chan:
-                        
-                        ( board, rest_of_request ) = request[1:].split( '/thread/', 1 )
-                        
-                        if '/' in rest_of_request: ( thread_id, gumpf ) = rest_of_request.split( '/' )
-                        else: thread_id = rest_of_request
-                        
-                        json_url = 'http://a.4cdn.org/' + board + '/thread/' + thread_id + '.json'
-                        image_base = 'http://i.4cdn.org/' + board + '/'
-                        
-                    elif is_8chan:
-                        
-                        ( board, rest_of_request ) = request[1:].split( '/res/', 1 )
-                        
-                        json_url = url[:-4] + 'json'
-                        image_base = 'http://8ch.net/' + board + '/src/'
-                        
-                    
-                except: raise Exception( 'Could not understand the board or thread id!' )
-                
-            except Exception as e:
-                
-                import_queue_builder_job_key = self._import_controller.GetJobKey( 'import_queue_builder' )
-                
-                import_queue_builder_job_key.SetVariable( 'status', HC.u( e ) )
-                
-                HC.ShowException( e )
-                
-                return
-                
-            
-            self._thread_input.Disable()
-            
-            self._SetThreadVariables()
-            
-            self._import_controller.PendImportQueueJob( ( json_url, image_base ) )
-            
-        else: event.Skip()
-        
-    
-    def EventManualRefresh( self, event ):
-        
-        import_queue_builder_job_key = self._import_controller.GetJobKey( 'import_queue_builder' )
-        
-        import_queue_builder_job_key.SetVariable( 'manual_refresh', True )
-        
-        self._thread_manual_refresh_button.Disable()
-        
-    
-    def EventPauseImportQueueBuilder( self, event ):
-        
-        import_queue_builder_job_key = self._import_controller.GetJobKey( 'import_queue_builder' )
-        
-        import_queue_builder_job_key.PauseResume()
-        
-        self._UpdateGUI()
-        
-    
-    def EventThreadVariable( self, event ): self._SetThreadVariables()
-    
-    def GetAdvancedTagOptions( self ): return self._advanced_tag_options.GetInfo()
-    
-    def SetSearchFocus( self, page_key ):
-        
-        if page_key == self._page_key: self._thread_input.SetFocus()
-        
-    
-    def TestAbleToClose( self ):
-        
-        import_queue_builder_position_job_key = self._import_controller.GetJobKey( 'import_queue_builder' )
-        
-        if self._thread_times_to_check.GetValue() > 0 and import_queue_builder_position_job_key.IsWorking() and not import_queue_builder_position_job_key.IsPaused():
-            
-            with ClientGUIDialogs.DialogYesNo( self, 'This page is still importing. Are you sure you want to close it?' ) as dlg:
-                
-                if dlg.ShowModal() == wx.ID_NO: raise Exception()
-                
-            
-        
-    
+	
+	def _InitExtraVboxElements( self, vbox ):
+		
+		ManagementPanelImport._InitExtraVboxElements( self, vbox )
+		
+		self._import_cancel_button.Hide()
+		
+		#
+		
+		self._thread_panel = ClientGUICommon.StaticBox( self, 'thread checker' )
+		
+		self._thread_info = wx.StaticText( self._thread_panel, label = 'enter a 4chan thread url' )
+		
+		( times_to_check, check_period ) = HC.options[ 'thread_checker_timings' ]
+		
+		self._thread_times_to_check = wx.SpinCtrl( self._thread_panel, size = ( 60, -1 ), min = 0, max = 100 )
+		self._thread_times_to_check.SetValue( times_to_check )
+		self._thread_times_to_check.Bind( wx.EVT_SPINCTRL, self.EventThreadVariable )
+		
+		self._thread_check_period = wx.SpinCtrl( self._thread_panel, size = ( 100, -1 ), min = 30, max = 86400 )
+		self._thread_check_period.SetValue( check_period )
+		self._thread_check_period.Bind( wx.EVT_SPINCTRL, self.EventThreadVariable )
+		
+		self._thread_input = wx.TextCtrl( self._thread_panel, style = wx.TE_PROCESS_ENTER )
+		self._thread_input.Bind( wx.EVT_KEY_DOWN, self.EventKeyDown )
+		
+		self._thread_pause_button = wx.Button( self._thread_panel, label = 'pause' )
+		self._thread_pause_button.Bind( wx.EVT_BUTTON, self.EventPauseImportQueueBuilder )
+		
+		self._thread_manual_refresh_button = wx.Button( self._thread_panel, label = 'check now' )
+		self._thread_manual_refresh_button.Bind( wx.EVT_BUTTON, self.EventManualRefresh )
+		
+		hbox = wx.BoxSizer( wx.HORIZONTAL )
+		
+		hbox.AddF( wx.StaticText( self._thread_panel, label = 'check ' ), FLAGS_MIXED )
+		hbox.AddF( self._thread_times_to_check, FLAGS_MIXED )
+		hbox.AddF( wx.StaticText( self._thread_panel, label = ' more times, every ' ), FLAGS_MIXED )
+		hbox.AddF( self._thread_check_period, FLAGS_MIXED )
+		hbox.AddF( wx.StaticText( self._thread_panel, label = ' seconds' ), FLAGS_MIXED )
+		
+		button_box = wx.BoxSizer( wx.HORIZONTAL )
+		
+		button_box.AddF( self._thread_pause_button, FLAGS_EXPAND_BOTH_WAYS )
+		button_box.AddF( self._thread_manual_refresh_button, FLAGS_EXPAND_BOTH_WAYS )
+		
+		self._thread_panel.AddF( self._thread_info, FLAGS_EXPAND_PERPENDICULAR )
+		self._thread_panel.AddF( self._thread_input, FLAGS_EXPAND_PERPENDICULAR )
+		self._thread_panel.AddF( hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
+		self._thread_panel.AddF( button_box, FLAGS_EXPAND_SIZER_PERPENDICULAR )
+		
+		vbox.AddF( self._thread_panel, FLAGS_EXPAND_SIZER_PERPENDICULAR )
+		
+		#
+		
+		self._advanced_tag_options = ClientGUICommon.AdvancedTagOptions( self, [ 'filename' ] )
+		
+		vbox.AddF( self._advanced_tag_options, FLAGS_EXPAND_PERPENDICULAR )
+		
+	
+	def _SetThreadVariables( self ):
+		
+		import_queue_builder_job_key = self._import_controller.GetJobKey( 'import_queue_builder' )
+		
+		thread_time = self._thread_check_period.GetValue()
+		thread_times_to_check = self._thread_times_to_check.GetValue()
+		
+		import_queue_builder_job_key.SetVariable( 'manual_refresh', False )
+		import_queue_builder_job_key.SetVariable( 'thread_time', thread_time )
+		import_queue_builder_job_key.SetVariable( 'thread_times_to_check', thread_times_to_check )
+		
+	
+	def _UpdateGUI( self ):
+		
+		ManagementPanelImport._UpdateGUI( self )
+		
+		import_job_key = self._import_controller.GetJobKey( 'import' )
+		import_queue_builder_job_key = self._import_controller.GetJobKey( 'import_queue_builder' )
+		
+		# thread_info
+		
+		status = import_queue_builder_job_key.GetVariable( 'status' )
+		
+		if status != self._thread_info.GetLabel(): self._thread_info.SetLabel( status )
+		
+		# button
+		
+		if import_queue_builder_job_key.IsWorking():
+			
+			self._thread_pause_button.Enable()
+			
+			if import_queue_builder_job_key.IsPaused():
+				
+				self._thread_pause_button.SetLabel( 'resume' )
+				self._thread_pause_button.SetForegroundColour( ( 0, 128, 0 ) )
+				
+			else:
+				
+				self._thread_pause_button.SetLabel( 'pause' )
+				self._thread_pause_button.SetForegroundColour( ( 0, 0, 0 ) )
+				
+			
+		else: self._thread_pause_button.Disable()
+		
+		# times to check
+		
+		try:
+			
+			thread_times_to_check = import_queue_builder_job_key.GetVariable( 'thread_times_to_check' )
+			
+			self._thread_times_to_check.SetValue( thread_times_to_check )
+			
+		except: self._SetThreadVariables()
+		
+		try:
+			
+			manual_refresh = import_queue_builder_job_key.GetVariable( 'manual_refresh' )
+			
+			if not import_queue_builder_job_key.IsWorking() or manual_refresh: self._thread_manual_refresh_button.Disable()
+			else: self._thread_manual_refresh_button.Enable()
+			
+		except: self._SetThreadVariables()
+		
+	
+	def EventKeyDown( self, event ):
+		
+		if event.KeyCode in ( wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER ):
+			
+			self._SetThreadVariables()
+			
+			url = self._thread_input.GetValue()
+			
+			if url == '': return
+			
+			try:
+				
+				try:
+					
+					parse_result = urlparse.urlparse( url )
+					
+					host = parse_result.hostname
+					
+					request = parse_result.path
+					
+					if host is None or request is None: raise Exception()
+					
+				except: raise Exception ( 'Could not understand that url!' )
+				
+				is_4chan = '4chan.org' in host
+				is_8chan = '8chan.co' in host or '8ch.net' in host
+				
+				if not ( is_4chan or is_8chan ): raise Exception( 'This only works for 4chan and 8chan right now!' )
+				
+				try:
+					
+					# 4chan
+					# /asp/thread/382059/post-your-favourite-martial-arts-video-if-martin
+					# http://a.4cdn.org/asp/thread/382059.json
+					# http://i.4cdn.org/asp/ for images
+					
+					# 8chan
+					# /v/res/406061.html
+					# http://8chan.co/v/res/406061.json
+					# http://8chan.co/v/src/ for images
+					
+					if is_4chan:
+						
+						( board, rest_of_request ) = request[1:].split( '/thread/', 1 )
+						
+						if '/' in rest_of_request: ( thread_id, gumpf ) = rest_of_request.split( '/' )
+						else: thread_id = rest_of_request
+						
+						json_url = 'http://a.4cdn.org/' + board + '/thread/' + thread_id + '.json'
+						image_base = 'http://i.4cdn.org/' + board + '/'
+						
+					elif is_8chan:
+						
+						( board, rest_of_request ) = request[1:].split( '/res/', 1 )
+						
+						json_url = url[:-4] + 'json'
+						image_base = 'http://8ch.net/' + board + '/src/'
+						
+					
+				except: raise Exception( 'Could not understand the board or thread id!' )
+				
+			except Exception as e:
+				
+				import_queue_builder_job_key = self._import_controller.GetJobKey( 'import_queue_builder' )
+				
+				import_queue_builder_job_key.SetVariable( 'status', HC.u( e ) )
+				
+				HC.ShowException( e )
+				
+				return
+				
+			
+			self._thread_input.Disable()
+			
+			self._SetThreadVariables()
+			
+			self._import_controller.PendImportQueueJob( ( json_url, image_base ) )
+			
+		else: event.Skip()
+		
+	
+	def EventManualRefresh( self, event ):
+		
+		import_queue_builder_job_key = self._import_controller.GetJobKey( 'import_queue_builder' )
+		
+		import_queue_builder_job_key.SetVariable( 'manual_refresh', True )
+		
+		self._thread_manual_refresh_button.Disable()
+		
+	
+	def EventPauseImportQueueBuilder( self, event ):
+		
+		import_queue_builder_job_key = self._import_controller.GetJobKey( 'import_queue_builder' )
+		
+		import_queue_builder_job_key.PauseResume()
+		
+		self._UpdateGUI()
+		
+	
+	def EventThreadVariable( self, event ): self._SetThreadVariables()
+	
+	def GetAdvancedTagOptions( self ): return self._advanced_tag_options.GetInfo()
+	
+	def SetSearchFocus( self, page_key ):
+		
+		if page_key == self._page_key: self._thread_input.SetFocus()
+		
+	
+	def TestAbleToClose( self ):
+		
+		import_queue_builder_position_job_key = self._import_controller.GetJobKey( 'import_queue_builder' )
+		
+		if self._thread_times_to_check.GetValue() > 0 and import_queue_builder_position_job_key.IsWorking() and not import_queue_builder_position_job_key.IsPaused():
+			
+			with ClientGUIDialogs.DialogYesNo( self, 'This page is still importing. Are you sure you want to close it?' ) as dlg:
+				
+				if dlg.ShowModal() == wx.ID_NO: raise Exception()
+				
+			
+		
+	
 class ManagementPanelPetitions( ManagementPanel ):
     
     def __init__( self, parent, page, page_key, file_service_key, petition_service_key, starting_from_session = False ):
@@ -2096,405 +2096,405 @@ class ManagementPanelPetitions( ManagementPanel ):
         
     
 class ManagementPanelQuery( ManagementPanel ):
-    
-    def __init__( self, parent, page, page_key, file_service_key, show_search = True, initial_predicates = [], starting_from_session = False ):
-        
-        ManagementPanel.__init__( self, parent, page, page_key, file_service_key, starting_from_session = starting_from_session )
-        
-        self._query_key = HC.JobKey( cancellable = True )
-        self._synchronised = True
-        self._include_current_tags = True
-        self._include_pending_tags = True
-        
-        self._show_search = show_search
-        
-        if self._show_search:
-            
-            self._search_panel = ClientGUICommon.StaticBox( self, 'search' )
-            
-            self._current_predicates_box = ClientGUICommon.ListBoxTagsPredicates( self._search_panel, self._page_key, initial_predicates )
-            
-            self._searchbox = ClientGUICommon.AutoCompleteDropdownTagsRead( self._search_panel, self._page_key, self._file_service_key, HC.COMBINED_TAG_SERVICE_KEY, self._page.GetMedia )
-            
-            self._search_panel.AddF( self._current_predicates_box, FLAGS_EXPAND_PERPENDICULAR )
-            self._search_panel.AddF( self._searchbox, FLAGS_EXPAND_PERPENDICULAR )
-            
-        
-        vbox = wx.BoxSizer( wx.VERTICAL )
-        
-        self._MakeSort( vbox )
-        self._MakeCollect( vbox )
-        
-        if self._show_search: vbox.AddF( self._search_panel, FLAGS_EXPAND_PERPENDICULAR )
-        
-        self._MakeCurrentSelectionTagsBox( vbox )
-        
-        self.SetSizer( vbox )
-        
-        if len( initial_predicates ) > 0 and not starting_from_session: wx.CallAfter( self._DoQuery )
-        
-        HC.pubsub.sub( self, 'AddMediaResultsFromQuery', 'add_media_results_from_query' )
-        HC.pubsub.sub( self, 'AddPredicate', 'add_predicate' )
-        HC.pubsub.sub( self, 'ChangeFileRepositoryPubsub', 'change_file_repository' )
-        HC.pubsub.sub( self, 'ChangeTagRepositoryPubsub', 'change_tag_repository' )
-        HC.pubsub.sub( self, 'IncludeCurrent', 'notify_include_current' )
-        HC.pubsub.sub( self, 'IncludePending', 'notify_include_pending' )
-        HC.pubsub.sub( self, 'SearchImmediately', 'notify_search_immediately' )
-        HC.pubsub.sub( self, 'ShowQuery', 'file_query_done' )
-        HC.pubsub.sub( self, 'RefreshQuery', 'refresh_query' )
-        HC.pubsub.sub( self, 'RemovePredicate', 'remove_predicate' )
-        
-    
-    def _DoQuery( self ):
-        
-        self._query_key.Cancel()
-        
-        self._query_key = HC.JobKey()
-        
-        if self._show_search and self._synchronised:
-            
-            try:
-                
-                current_predicates = self._current_predicates_box.GetPredicates()
-                
-                if len( current_predicates ) > 0:
-                    
-                    include_current = self._include_current_tags
-                    include_pending = self._include_pending_tags
-                    
-                    search_context = CC.FileSearchContext( self._file_service_key, self._tag_service_key, include_current, include_pending, current_predicates )
-                    
-                    HC.app.StartFileQuery( self._query_key, search_context )
-                    
-                    panel = ClientGUIMedia.MediaPanelLoading( self._page, self._page_key, self._file_service_key )
-                    
-                else: panel = ClientGUIMedia.MediaPanelNoQuery( self._page, self._page_key, self._file_service_key )
-                
-                HC.pubsub.pub( 'swap_media_panel', self._page_key, panel )
-                
-            except: wx.MessageBox( traceback.format_exc() )
-            
-        
-    
-    def AddMediaResultsFromQuery( self, query_key, media_results ):
-        
-        if query_key == self._query_key: HC.pubsub.pub( 'add_media_results', self._page_key, media_results, append = False )
-        
-    
-    def AddPredicate( self, page_key, predicate ): 
-        
-        if self._show_search and page_key == self._page_key:
-            
-            if predicate is not None:
-                
-                ( predicate_type, value, inclusive ) = predicate.GetInfo()
-                
-                if predicate_type == HC.PREDICATE_TYPE_SYSTEM:
-                    
-                    ( system_predicate_type, info ) = value
-                    
-                    if system_predicate_type in [ HC.SYSTEM_PREDICATE_TYPE_NUM_TAGS, HC.SYSTEM_PREDICATE_TYPE_LIMIT, HC.SYSTEM_PREDICATE_TYPE_SIZE, HC.SYSTEM_PREDICATE_TYPE_AGE, HC.SYSTEM_PREDICATE_TYPE_HASH, HC.SYSTEM_PREDICATE_TYPE_WIDTH, HC.SYSTEM_PREDICATE_TYPE_HEIGHT, HC.SYSTEM_PREDICATE_TYPE_RATIO, HC.SYSTEM_PREDICATE_TYPE_DURATION, HC.SYSTEM_PREDICATE_TYPE_NUM_WORDS, HC.SYSTEM_PREDICATE_TYPE_MIME, HC.SYSTEM_PREDICATE_TYPE_RATING, HC.SYSTEM_PREDICATE_TYPE_SIMILAR_TO, HC.SYSTEM_PREDICATE_TYPE_FILE_SERVICE ]:
-                        
-                        with ClientGUIDialogs.DialogInputFileSystemPredicate( self, system_predicate_type ) as dlg:
-                            
-                            if dlg.ShowModal() == wx.ID_OK: predicate = dlg.GetPredicate()
-                            else: return
-                            
-                        
-                    elif system_predicate_type == HC.SYSTEM_PREDICATE_TYPE_UNTAGGED: predicate = HC.Predicate( HC.PREDICATE_TYPE_SYSTEM, ( HC.SYSTEM_PREDICATE_TYPE_NUM_TAGS, ( '=', 0 ) ) )
-                    
-                
-                if self._current_predicates_box.HasPredicate( predicate ): self._current_predicates_box.RemovePredicate( predicate )
-                else: self._current_predicates_box.AddPredicate( predicate )
-                
-            
-            self._DoQuery()
-            
-        
-    
-    def ChangeFileRepositoryPubsub( self, page_key, service_key ):
-        
-        if page_key == self._page_key:
-            
-            self._file_service_key = service_key
-            
-            self._DoQuery()
-            
-        
-    
-    def ChangeTagRepositoryPubsub( self, page_key, service_key ):
-        
-        if page_key == self._page_key:
-            
-            self._tag_service_key = service_key
-            
-            self._DoQuery()
-            
-        
-    
-    def CleanBeforeDestroy( self ):
-        
-        ManagementPanel.CleanBeforeDestroy( self )
-        
-        self._query_key.Cancel()
-        
-    
-    def GetPredicates( self ):
-        
-        if hasattr( self, '_current_predicates_box' ): return self._current_predicates_box.GetPredicates()
-        else: return []
-        
-    
-    def IncludeCurrent( self, page_key, value ):
-        
-        if page_key == self._page_key:
-            
-            self._include_current_tags = value
-            
-            self._DoQuery()
-            
-        
-    
-    def IncludePending( self, page_key, value ):
-        
-        if page_key == self._page_key:
-            
-            self._include_pending_tags = value
-            
-            self._DoQuery()
-            
-        
-    
-    def RefreshQuery( self, page_key ):
-        
-        if page_key == self._page_key: self._DoQuery()
-        
-    
-    def RemovePredicate( self, page_key, predicate ):
-        
-        if page_key == self._page_key:
-            
-            if self._current_predicates_box.HasPredicate( predicate ):
-                
-                self._current_predicates_box.RemovePredicate( predicate )
-                
-                self._DoQuery()
-                
-            
-        
-    
-    def SearchImmediately( self, page_key, value ):
-        
-        if page_key == self._page_key:
-            
-            self._synchronised = value
-            
-            self._DoQuery()
-            
-        
-    
-    def SetSearchFocus( self, page_key ):
-        
-        if page_key == self._page_key:
-            
-            try: self._searchbox.SetFocus() # there's a chance this doesn't exist!
-            except: HC.pubsub.pub( 'set_media_focus' )
-            
-        
-    
-    def ShowQuery( self, query_key, media_results ):
-        
-        try:
-            
-            if query_key == self._query_key:
-                
-                current_predicates = self._current_predicates_box.GetPredicates()
-                
-                panel = ClientGUIMedia.MediaPanelThumbnails( self._page, self._page_key, self._file_service_key, media_results )
-                
-                panel.Collect( self._page_key, self._collect_by.GetChoice() )
-                
-                panel.Sort( self._page_key, self._sort_by.GetChoice() )
-                
-                HC.pubsub.pub( 'swap_media_panel', self._page_key, panel )
-                
-            
-        except: wx.MessageBox( traceback.format_exc() )
-        
-    
+	
+	def __init__( self, parent, page, page_key, file_service_key, show_search = True, initial_predicates = [], starting_from_session = False ):
+		
+		ManagementPanel.__init__( self, parent, page, page_key, file_service_key, starting_from_session = starting_from_session )
+		
+		self._query_key = HC.JobKey( cancellable = True )
+		self._synchronised = True
+		self._include_current_tags = True
+		self._include_pending_tags = True
+		
+		self._show_search = show_search
+		
+		if self._show_search:
+			
+			self._search_panel = ClientGUICommon.StaticBox( self, 'search' )
+			
+			self._current_predicates_box = ClientGUICommon.ListBoxTagsPredicates( self._search_panel, self._page_key, initial_predicates )
+			
+			self._searchbox = ClientGUICommon.AutoCompleteDropdownTagsRead( self._search_panel, self._page_key, self._file_service_key, HC.COMBINED_TAG_SERVICE_KEY, self._page.GetMedia )
+			
+			self._search_panel.AddF( self._current_predicates_box, FLAGS_EXPAND_PERPENDICULAR )
+			self._search_panel.AddF( self._searchbox, FLAGS_EXPAND_PERPENDICULAR )
+			
+		
+		vbox = wx.BoxSizer( wx.VERTICAL )
+		
+		self._MakeSort( vbox )
+		self._MakeCollect( vbox )
+		
+		if self._show_search: vbox.AddF( self._search_panel, FLAGS_EXPAND_PERPENDICULAR )
+		
+		self._MakeCurrentSelectionTagsBox( vbox )
+		
+		self.SetSizer( vbox )
+		
+		if len( initial_predicates ) > 0 and not starting_from_session: wx.CallAfter( self._DoQuery )
+		
+		HC.pubsub.sub( self, 'AddMediaResultsFromQuery', 'add_media_results_from_query' )
+		HC.pubsub.sub( self, 'AddPredicate', 'add_predicate' )
+		HC.pubsub.sub( self, 'ChangeFileRepositoryPubsub', 'change_file_repository' )
+		HC.pubsub.sub( self, 'ChangeTagRepositoryPubsub', 'change_tag_repository' )
+		HC.pubsub.sub( self, 'IncludeCurrent', 'notify_include_current' )
+		HC.pubsub.sub( self, 'IncludePending', 'notify_include_pending' )
+		HC.pubsub.sub( self, 'SearchImmediately', 'notify_search_immediately' )
+		HC.pubsub.sub( self, 'ShowQuery', 'file_query_done' )
+		HC.pubsub.sub( self, 'RefreshQuery', 'refresh_query' )
+		HC.pubsub.sub( self, 'RemovePredicate', 'remove_predicate' )
+		
+	
+	def _DoQuery( self ):
+		
+		self._query_key.Cancel()
+		
+		self._query_key = HC.JobKey()
+		
+		if self._show_search and self._synchronised:
+			
+			try:
+				
+				current_predicates = self._current_predicates_box.GetPredicates()
+				
+				if len( current_predicates ) > 0:
+					
+					include_current = self._include_current_tags
+					include_pending = self._include_pending_tags
+					
+					search_context = CC.FileSearchContext( self._file_service_key, self._tag_service_key, include_current, include_pending, current_predicates )
+					
+					HC.app.StartFileQuery( self._query_key, search_context )
+					
+					panel = ClientGUIMedia.MediaPanelLoading( self._page, self._page_key, self._file_service_key )
+					
+				else: panel = ClientGUIMedia.MediaPanelNoQuery( self._page, self._page_key, self._file_service_key )
+				
+				HC.pubsub.pub( 'swap_media_panel', self._page_key, panel )
+				
+			except: wx.MessageBox( traceback.format_exc() )
+			
+		
+	
+	def AddMediaResultsFromQuery( self, query_key, media_results ):
+		
+		if query_key == self._query_key: HC.pubsub.pub( 'add_media_results', self._page_key, media_results, append = False )
+		
+	
+	def AddPredicate( self, page_key, predicate ): 
+		
+		if self._show_search and page_key == self._page_key:
+			
+			if predicate is not None:
+				
+				( predicate_type, value, inclusive ) = predicate.GetInfo()
+				
+				if predicate_type == HC.PREDICATE_TYPE_SYSTEM:
+					
+					( system_predicate_type, info ) = value
+					
+					if system_predicate_type in [ HC.SYSTEM_PREDICATE_TYPE_NUM_TAGS, HC.SYSTEM_PREDICATE_TYPE_LIMIT, HC.SYSTEM_PREDICATE_TYPE_SIZE, HC.SYSTEM_PREDICATE_TYPE_AGE, HC.SYSTEM_PREDICATE_TYPE_HASH, HC.SYSTEM_PREDICATE_TYPE_WIDTH, HC.SYSTEM_PREDICATE_TYPE_HEIGHT, HC.SYSTEM_PREDICATE_TYPE_RATIO, HC.SYSTEM_PREDICATE_TYPE_DURATION, HC.SYSTEM_PREDICATE_TYPE_NUM_WORDS, HC.SYSTEM_PREDICATE_TYPE_MIME, HC.SYSTEM_PREDICATE_TYPE_RATING, HC.SYSTEM_PREDICATE_TYPE_SIMILAR_TO, HC.SYSTEM_PREDICATE_TYPE_FILE_SERVICE ]:
+						
+						with ClientGUIDialogs.DialogInputFileSystemPredicate( self, system_predicate_type ) as dlg:
+							
+							if dlg.ShowModal() == wx.ID_OK: predicate = dlg.GetPredicate()
+							else: return
+							
+						
+					elif system_predicate_type == HC.SYSTEM_PREDICATE_TYPE_UNTAGGED: predicate = HC.Predicate( HC.PREDICATE_TYPE_SYSTEM, ( HC.SYSTEM_PREDICATE_TYPE_NUM_TAGS, ( '=', 0 ) ) )
+					
+				
+				if self._current_predicates_box.HasPredicate( predicate ): self._current_predicates_box.RemovePredicate( predicate )
+				else: self._current_predicates_box.AddPredicate( predicate )
+				
+			
+			self._DoQuery()
+			
+		
+	
+	def ChangeFileRepositoryPubsub( self, page_key, service_key ):
+		
+		if page_key == self._page_key:
+			
+			self._file_service_key = service_key
+			
+			self._DoQuery()
+			
+		
+	
+	def ChangeTagRepositoryPubsub( self, page_key, service_key ):
+		
+		if page_key == self._page_key:
+			
+			self._tag_service_key = service_key
+			
+			self._DoQuery()
+			
+		
+	
+	def CleanBeforeDestroy( self ):
+		
+		ManagementPanel.CleanBeforeDestroy( self )
+		
+		self._query_key.Cancel()
+		
+	
+	def GetPredicates( self ):
+		
+		if hasattr( self, '_current_predicates_box' ): return self._current_predicates_box.GetPredicates()
+		else: return []
+		
+	
+	def IncludeCurrent( self, page_key, value ):
+		
+		if page_key == self._page_key:
+			
+			self._include_current_tags = value
+			
+			self._DoQuery()
+			
+		
+	
+	def IncludePending( self, page_key, value ):
+		
+		if page_key == self._page_key:
+			
+			self._include_pending_tags = value
+			
+			self._DoQuery()
+			
+		
+	
+	def RefreshQuery( self, page_key ):
+		
+		if page_key == self._page_key: self._DoQuery()
+		
+	
+	def RemovePredicate( self, page_key, predicate ):
+		
+		if page_key == self._page_key:
+			
+			if self._current_predicates_box.HasPredicate( predicate ):
+				
+				self._current_predicates_box.RemovePredicate( predicate )
+				
+				self._DoQuery()
+				
+			
+		
+	
+	def SearchImmediately( self, page_key, value ):
+		
+		if page_key == self._page_key:
+			
+			self._synchronised = value
+			
+			self._DoQuery()
+			
+		
+	
+	def SetSearchFocus( self, page_key ):
+		
+		if page_key == self._page_key:
+			
+			try: self._searchbox.SetFocus() # there's a chance this doesn't exist!
+			except: HC.pubsub.pub( 'set_media_focus' )
+			
+		
+	
+	def ShowQuery( self, query_key, media_results ):
+		
+		try:
+			
+			if query_key == self._query_key:
+				
+				current_predicates = self._current_predicates_box.GetPredicates()
+				
+				panel = ClientGUIMedia.MediaPanelThumbnails( self._page, self._page_key, self._file_service_key, media_results )
+				
+				panel.Collect( self._page_key, self._collect_by.GetChoice() )
+				
+				panel.Sort( self._page_key, self._sort_by.GetChoice() )
+				
+				HC.pubsub.pub( 'swap_media_panel', self._page_key, panel )
+				
+			
+		except: wx.MessageBox( traceback.format_exc() )
+		
+	
 class ManagementPanelMessages( wx.ScrolledWindow ):
-    
-    def __init__( self, parent, page_key, identity, starting_from_session = False ):
-        
-        wx.ScrolledWindow.__init__( self, parent, style = wx.BORDER_NONE | wx.HSCROLL | wx.VSCROLL )
-        
-        self.SetScrollRate( 0, 20 )
-        
-        self._page_key = page_key
-        self._identity = identity
-        self._starting_from_session = starting_from_session
-        
-        self._query_key = HC.JobKey( cancellable = True )
-        
-        # sort out push-refresh later
-        #self._refresh_inbox = wx.Button( self, label = 'refresh inbox' )
-        #self._refresh_inbox.Bind( wx.EVT_BUTTON, self.EventRefreshInbox )
-        #self._refresh_inbox.SetForegroundColour( ( 0, 128, 0 ) )
-        
-        self._actions_panel = ClientGUICommon.StaticBox( self, 'actions' )
-        
-        self._compose = wx.Button( self._actions_panel, label = 'compose' )
-        self._compose.Bind( wx.EVT_BUTTON, self.EventCompose )
-        self._compose.SetForegroundColour( ( 0, 128, 0 ) )
-        
-        self._actions_panel.AddF( self._compose, FLAGS_EXPAND_PERPENDICULAR )
-        #vbox.AddF( self._refresh_inbox, FLAGS_EXPAND_PERPENDICULAR )
-        
-        self._search_panel = ClientGUICommon.StaticBox( self, 'search' )
-        
-        self._current_predicates_box = ClientGUICommon.ListBoxMessagesPredicates( self._search_panel, self._page_key, [ 'system:inbox' ] )
-        
-        self._synchronised = ClientGUICommon.OnOffButton( self._search_panel, self._page_key, 'notify_search_immediately', on_label = 'searching immediately', off_label = 'waiting -- counts may be inaccurate' )
-        self._synchronised.SetToolTipString( 'select whether to renew the search as soon as a new predicate is entered' )
-        
-        self._searchbox = ClientGUICommon.AutoCompleteDropdownMessageTerms( self._search_panel, self._page_key, self._identity )
-        
-        self._search_panel.AddF( self._current_predicates_box, FLAGS_EXPAND_BOTH_WAYS )
-        self._search_panel.AddF( self._synchronised, FLAGS_EXPAND_PERPENDICULAR )
-        self._search_panel.AddF( self._searchbox, FLAGS_EXPAND_PERPENDICULAR )
-        
-        vbox = wx.BoxSizer( wx.VERTICAL )
-        
-        vbox.AddF( self._actions_panel, FLAGS_EXPAND_PERPENDICULAR )
-        vbox.AddF( self._search_panel, FLAGS_EXPAND_BOTH_WAYS )
-        
-        self.SetSizer( vbox )
-        
-        HC.pubsub.sub( self, 'AddPredicate', 'add_predicate' )
-        HC.pubsub.sub( self, 'SearchImmediately', 'notify_search_immediately' )
-        HC.pubsub.sub( self, 'ShowQuery', 'message_query_done' )
-        HC.pubsub.sub( self, 'RefreshQuery', 'refresh_query' )
-        HC.pubsub.sub( self, 'RemovePredicate', 'remove_predicate' )
-        
-        wx.CallAfter( self._DoQuery )
-        
-    
-    def _DoQuery( self ):
-        
-        if self._synchronised.IsOn():
-            
-            try:
-                
-                current_predicates = self._current_predicates_box.GetPredicates()
-                
-                HC.pubsub.pub( 'set_conversations', self._page_key, [] )
-                
-                self._query_key.Cancel()
-                
-                self._query_key = HC.JobKey( cancellable = True )
-                
-                if len( current_predicates ) > 0:
-                    
-                    search_context = ClientConstantsMessages.MessageSearchContext( self._identity, current_predicates )
-                    
-                    HC.app.Read( 'do_message_query', self._query_key, search_context )
-                    
-                
-            except: wx.MessageBox( traceback.format_exc() )
-            
-        
-    
-    def AddPredicate( self, page_key, predicate ): 
-        
-        if page_key == self._page_key:
-            
-            if predicate is not None:
-                
-                if predicate in ( 'system:started_by', 'system:from', 'system:to', 'system:age', 'system:numattachments' ):
-                    
-                    with ClientGUIDialogs.DialogInputMessageSystemPredicate( self, predicate ) as dlg:
-                        
-                        if dlg.ShowModal() == wx.ID_OK: predicate = dlg.GetString()
-                        else: return
-                        
-                    
-                elif predicate == 'system:unread': predicate = 'system:status=unread'
-                elif predicate == 'system:drafts': predicate = 'system:draft'
-                
-                if self._current_predicates_box.HasPredicate( predicate ): self._current_predicates_box.RemovePredicate( predicate )
-                else:
-                    
-                    if predicate in ( 'system:inbox', 'system:archive' ):
-                        
-                        if predicate == 'system:inbox': removee = 'system:archive'
-                        elif predicate == 'system:archive': removee = 'system:inbox'
-                        
-                    else:
-                        
-                        if predicate.startswith( '-' ): removee = predicate[1:]
-                        else: removee = '-' + predicate
-                        
-                    
-                    if self._current_predicates_box.HasPredicate( removee ): self._current_predicates_box.RemovePredicate( removee )
-                    
-                    self._current_predicates_box.AddPredicate( predicate )
-                    
-                
-            
-            self._DoQuery()
-            
-        
-    
-    def EventCompose( self, event ): HC.pubsub.pub( 'new_compose_frame', self._identity )
-    
-    def EventRefreshInbox( self, event ):
-        
-        # tell db to do it, and that'll spam the appropriate pubsubs (which will tell this to just refresh query, I think is best)
-        
-        pass
-        
-    
-    def RefreshQuery( self, page_key ):
-        
-        if page_key == self._page_key: self._DoQuery()
-        
-    
-    def RemovePredicate( self, page_key, predicate ):
-        
-        if page_key == self._page_key:
-            
-            if self._current_predicates_box.HasPredicate( predicate ):
-                
-                self._current_predicates_box.RemovePredicate( predicate )
-                
-                self._DoQuery()
-                
-            
-        
-    
-    def SearchImmediately( self, page_key, value ):
-        
-        if page_key == self._page_key and value: self._DoQuery()
-        
-    
-    def SetSearchFocus( self, page_key ):
-        
-        if page_key == self._page_key: self._searchbox.SetFocus()
-        
-    
-    def ShowQuery( self, query_key, conversations ):
-        
-        try:
-            
-            if query_key == self._query_key: HC.pubsub.pub( 'set_conversations', self._page_key, conversations )
-            
-        except: wx.MessageBox( traceback.format_exc() )
-        
-    
-    def TestAbleToClose( self ):
-        
-        pass
-        
-        # if have a open draft, save it!
-        
-    
+	
+	def __init__( self, parent, page_key, identity, starting_from_session = False ):
+		
+		wx.ScrolledWindow.__init__( self, parent, style = wx.BORDER_NONE | wx.HSCROLL | wx.VSCROLL )
+		
+		self.SetScrollRate( 0, 20 )
+		
+		self._page_key = page_key
+		self._identity = identity
+		self._starting_from_session = starting_from_session
+		
+		self._query_key = HC.JobKey( cancellable = True )
+		
+		# sort out push-refresh later
+		#self._refresh_inbox = wx.Button( self, label = 'refresh inbox' )
+		#self._refresh_inbox.Bind( wx.EVT_BUTTON, self.EventRefreshInbox )
+		#self._refresh_inbox.SetForegroundColour( ( 0, 128, 0 ) )
+		
+		self._actions_panel = ClientGUICommon.StaticBox( self, 'actions' )
+		
+		self._compose = wx.Button( self._actions_panel, label = 'compose' )
+		self._compose.Bind( wx.EVT_BUTTON, self.EventCompose )
+		self._compose.SetForegroundColour( ( 0, 128, 0 ) )
+		
+		self._actions_panel.AddF( self._compose, FLAGS_EXPAND_PERPENDICULAR )
+		#vbox.AddF( self._refresh_inbox, FLAGS_EXPAND_PERPENDICULAR )
+		
+		self._search_panel = ClientGUICommon.StaticBox( self, 'search' )
+		
+		self._current_predicates_box = ClientGUICommon.ListBoxMessagesPredicates( self._search_panel, self._page_key, [ 'system:inbox' ] )
+		
+		self._synchronised = ClientGUICommon.OnOffButton( self._search_panel, self._page_key, 'notify_search_immediately', on_label = 'searching immediately', off_label = 'waiting -- counts may be inaccurate' )
+		self._synchronised.SetToolTipString( 'select whether to renew the search as soon as a new predicate is entered' )
+		
+		self._searchbox = ClientGUICommon.AutoCompleteDropdownMessageTerms( self._search_panel, self._page_key, self._identity )
+		
+		self._search_panel.AddF( self._current_predicates_box, FLAGS_EXPAND_BOTH_WAYS )
+		self._search_panel.AddF( self._synchronised, FLAGS_EXPAND_PERPENDICULAR )
+		self._search_panel.AddF( self._searchbox, FLAGS_EXPAND_PERPENDICULAR )
+		
+		vbox = wx.BoxSizer( wx.VERTICAL )
+		
+		vbox.AddF( self._actions_panel, FLAGS_EXPAND_PERPENDICULAR )
+		vbox.AddF( self._search_panel, FLAGS_EXPAND_BOTH_WAYS )
+		
+		self.SetSizer( vbox )
+		
+		HC.pubsub.sub( self, 'AddPredicate', 'add_predicate' )
+		HC.pubsub.sub( self, 'SearchImmediately', 'notify_search_immediately' )
+		HC.pubsub.sub( self, 'ShowQuery', 'message_query_done' )
+		HC.pubsub.sub( self, 'RefreshQuery', 'refresh_query' )
+		HC.pubsub.sub( self, 'RemovePredicate', 'remove_predicate' )
+		
+		wx.CallAfter( self._DoQuery )
+		
+	
+	def _DoQuery( self ):
+		
+		if self._synchronised.IsOn():
+			
+			try:
+				
+				current_predicates = self._current_predicates_box.GetPredicates()
+				
+				HC.pubsub.pub( 'set_conversations', self._page_key, [] )
+				
+				self._query_key.Cancel()
+				
+				self._query_key = HC.JobKey( cancellable = True )
+				
+				if len( current_predicates ) > 0:
+					
+					search_context = ClientConstantsMessages.MessageSearchContext( self._identity, current_predicates )
+					
+					HC.app.Read( 'do_message_query', self._query_key, search_context )
+					
+				
+			except: wx.MessageBox( traceback.format_exc() )
+			
+		
+	
+	def AddPredicate( self, page_key, predicate ): 
+		
+		if page_key == self._page_key:
+			
+			if predicate is not None:
+				
+				if predicate in ( 'system:started_by', 'system:from', 'system:to', 'system:age', 'system:numattachments' ):
+					
+					with ClientGUIDialogs.DialogInputMessageSystemPredicate( self, predicate ) as dlg:
+						
+						if dlg.ShowModal() == wx.ID_OK: predicate = dlg.GetString()
+						else: return
+						
+					
+				elif predicate == 'system:unread': predicate = 'system:status=unread'
+				elif predicate == 'system:drafts': predicate = 'system:draft'
+				
+				if self._current_predicates_box.HasPredicate( predicate ): self._current_predicates_box.RemovePredicate( predicate )
+				else:
+					
+					if predicate in ( 'system:inbox', 'system:archive' ):
+						
+						if predicate == 'system:inbox': removee = 'system:archive'
+						elif predicate == 'system:archive': removee = 'system:inbox'
+						
+					else:
+						
+						if predicate.startswith( '-' ): removee = predicate[1:]
+						else: removee = '-' + predicate
+						
+					
+					if self._current_predicates_box.HasPredicate( removee ): self._current_predicates_box.RemovePredicate( removee )
+					
+					self._current_predicates_box.AddPredicate( predicate )
+					
+				
+			
+			self._DoQuery()
+			
+		
+	
+	def EventCompose( self, event ): HC.pubsub.pub( 'new_compose_frame', self._identity )
+	
+	def EventRefreshInbox( self, event ):
+		
+		# tell db to do it, and that'll spam the appropriate pubsubs (which will tell this to just refresh query, I think is best)
+		
+		pass
+		
+	
+	def RefreshQuery( self, page_key ):
+		
+		if page_key == self._page_key: self._DoQuery()
+		
+	
+	def RemovePredicate( self, page_key, predicate ):
+		
+		if page_key == self._page_key:
+			
+			if self._current_predicates_box.HasPredicate( predicate ):
+				
+				self._current_predicates_box.RemovePredicate( predicate )
+				
+				self._DoQuery()
+				
+			
+		
+	
+	def SearchImmediately( self, page_key, value ):
+		
+		if page_key == self._page_key and value: self._DoQuery()
+		
+	
+	def SetSearchFocus( self, page_key ):
+		
+		if page_key == self._page_key: self._searchbox.SetFocus()
+		
+	
+	def ShowQuery( self, query_key, conversations ):
+		
+		try:
+			
+			if query_key == self._query_key: HC.pubsub.pub( 'set_conversations', self._page_key, conversations )
+			
+		except: wx.MessageBox( traceback.format_exc() )
+		
+	
+	def TestAbleToClose( self ):
+		
+		pass
+		
+		# if have a open draft, save it!
+		
+	

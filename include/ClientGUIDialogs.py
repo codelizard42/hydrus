@@ -61,2286 +61,2286 @@ FLAGS_LONE_BUTTON = wx.SizerFlags( 0 ).Border( wx.ALL, 2 ).Align( wx.ALIGN_RIGHT
 FLAGS_MIXED = wx.SizerFlags( 0 ).Border( wx.ALL, 2 ).Align( wx.ALIGN_CENTER_VERTICAL )
 
 def SelectServiceKey( permission = None, service_types = HC.ALL_SERVICES, service_keys = None, unallowed = None ):
-    
-    if service_keys is None:
-        
-        services = HC.app.GetManager( 'services' ).GetServices( service_types )
-        
-        if permission is not None: services = [ service for service in services if service.GetInfo( 'account' ).HasPermission( permission ) ]
-        
-        service_keys = [ service.GetServiceKey() for service in services ]
-        
-    
-    if unallowed is not None: service_keys.difference_update( unallowed )
-    
-    if len( service_keys ) == 0: return None
-    elif len( service_keys ) == 1:
-        
-        ( service_key, ) = service_keys
-        
-        return service_key
-        
-    else:
-        
-        services = { HC.app.GetManager( 'services' ).GetService( service_key ) for service_key in service_keys }
-        
-        names_to_service_keys = { service.GetName() : service.GetServiceKey() for service in services }
-        
-        with DialogSelectFromListOfStrings( HC.app.GetGUI(), 'select service', names_to_service_keys.keys() ) as dlg:
-            
-            if dlg.ShowModal() == wx.ID_OK: return names_to_service_keys[ dlg.GetString() ]
-            else: return None
-            
-        
-    
+	
+	if service_keys is None:
+		
+		services = HC.app.GetManager( 'services' ).GetServices( service_types )
+		
+		if permission is not None: services = [ service for service in services if service.GetInfo( 'account' ).HasPermission( permission ) ]
+		
+		service_keys = [ service.GetServiceKey() for service in services ]
+		
+	
+	if unallowed is not None: service_keys.difference_update( unallowed )
+	
+	if len( service_keys ) == 0: return None
+	elif len( service_keys ) == 1:
+		
+		( service_key, ) = service_keys
+		
+		return service_key
+		
+	else:
+		
+		services = { HC.app.GetManager( 'services' ).GetService( service_key ) for service_key in service_keys }
+		
+		names_to_service_keys = { service.GetName() : service.GetServiceKey() for service in services }
+		
+		with DialogSelectFromListOfStrings( HC.app.GetGUI(), 'select service', names_to_service_keys.keys() ) as dlg:
+			
+			if dlg.ShowModal() == wx.ID_OK: return names_to_service_keys[ dlg.GetString() ]
+			else: return None
+			
+		
+	
 class Dialog( wx.Dialog ):
-    
-    def __init__( self, parent, title, style = wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER, position = 'topleft' ):
-        
-        if parent is not None and position == 'topleft':
-            
-            if issubclass( type( parent ), wx.TopLevelWindow ): parent_tlp = parent
-            else: parent_tlp = parent.GetTopLevelParent()
-            
-            ( pos_x, pos_y ) = parent_tlp.GetPositionTuple()
-            
-            pos = ( pos_x + 50, pos_y + 100 )
-            
-        else: pos = ( -1, -1 )
-        
-        wx.Dialog.__init__( self, parent, title = title, style = style, pos = pos )
-        
-        #self.SetDoubleBuffered( True )
-        
-        self.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_BTNFACE ) )
-        
-        self.SetIcon( wx.Icon( HC.STATIC_DIR + os.path.sep + 'hydrus.ico', wx.BITMAP_TYPE_ICO ) )
-        
-        self.Bind( wx.EVT_BUTTON, self.EventDialogButton )
-        
-        if position == 'center': wx.CallAfter( self.Center )
-        
-        HC.app.ResetIdleTimer()
-        
-    
-    def EventDialogButton( self, event ): self.EndModal( event.GetId() )
-    
-    def SetInitialSize( self, ( width, height ) ):
-        
-        wx.Dialog.SetInitialSize( self, ( width, height ) )
-        
-        min_width = min( 240, width )
-        min_height = min( 180, height )
-        
-        self.SetMinSize( ( min_width, min_height ) )
-        
-    
+	
+	def __init__( self, parent, title, style = wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER, position = 'topleft' ):
+		
+		if parent is not None and position == 'topleft':
+			
+			if issubclass( type( parent ), wx.TopLevelWindow ): parent_tlp = parent
+			else: parent_tlp = parent.GetTopLevelParent()
+			
+			( pos_x, pos_y ) = parent_tlp.GetPositionTuple()
+			
+			pos = ( pos_x + 50, pos_y + 100 )
+			
+		else: pos = ( -1, -1 )
+		
+		wx.Dialog.__init__( self, parent, title = title, style = style, pos = pos )
+		
+		#self.SetDoubleBuffered( True )
+		
+		self.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_BTNFACE ) )
+		
+		self.SetIcon( wx.Icon( HC.STATIC_DIR + os.path.sep + 'hydrus.ico', wx.BITMAP_TYPE_ICO ) )
+		
+		self.Bind( wx.EVT_BUTTON, self.EventDialogButton )
+		
+		if position == 'center': wx.CallAfter( self.Center )
+		
+		HC.app.ResetIdleTimer()
+		
+	
+	def EventDialogButton( self, event ): self.EndModal( event.GetId() )
+	
+	def SetInitialSize( self, ( width, height ) ):
+		
+		wx.Dialog.SetInitialSize( self, ( width, height ) )
+		
+		min_width = min( 240, width )
+		min_height = min( 180, height )
+		
+		self.SetMinSize( ( min_width, min_height ) )
+		
+	
 class DialogAdvancedContentUpdate( Dialog ):
-    
-    COPY = 0
-    DELETE = 1
-    DELETE_DELETED = 2
-    
-    ALL_MAPPINGS = 0
-    SPECIFIC_MAPPINGS = 1
-    SPECIFIC_NAMESPACE = 2
-    
-    def __init__( self, parent, service_key, hashes = None ):
-        
-        def InitialiseControls():
-            
-            self._internal_actions = ClientGUICommon.StaticBox( self, 'internal' )
-            
-            self._action_dropdown = ClientGUICommon.BetterChoice( self._internal_actions )
-            self._action_dropdown.Bind( wx.EVT_CHOICE, self.EventChoice )
-            self._tag_type_dropdown = ClientGUICommon.BetterChoice( self._internal_actions )
-            self._service_key_dropdown = ClientGUICommon.BetterChoice( self._internal_actions )
-            
-            self._go = wx.Button( self._internal_actions, label = 'Go!' )
-            self._go.Bind( wx.EVT_BUTTON, self.EventGo )
-            
-            self._tag_input = ClientGUICommon.AutoCompleteDropdownTagsWrite( self._internal_actions, self.SetSomeTag, HC.COMBINED_FILE_SERVICE_KEY, self._service_key )
-            self._specific_tag = wx.StaticText( self._internal_actions, label = '', size = ( 100, -1 ) )
-            
-            #
-            
-            self._external_actions = ClientGUICommon.StaticBox( self, 'external' )
-            
-            self._export_to_hta = wx.Button( self._external_actions, label = 'export to hydrus tag archive' )
-            self._export_to_hta.Bind( wx.EVT_BUTTON, self.EventExportToHTA )
-            
-            #
-            
-            self._done = wx.Button( self, label = 'done' )
-            
-        
-        def PopulateControls():
-            
-            self._action_dropdown.Append( 'copy', self.COPY )
-            if self._service_key == HC.LOCAL_TAG_SERVICE_KEY:
-                
-                self._action_dropdown.Append( 'delete', self.DELETE )
-                self._action_dropdown.Append( 'clear deleted record', self.DELETE_DELETED )
-                
-            
-            self._action_dropdown.Select( 0 )
-            
-            #
-            
-            self._tag_type_dropdown.Append( 'all mappings', self.ALL_MAPPINGS )
-            self._tag_type_dropdown.Append( 'specific tag\'s mappings', self.SPECIFIC_MAPPINGS )
-            self._tag_type_dropdown.Append( 'specific namespace\'s mappings', self.SPECIFIC_NAMESPACE )
-            
-            self._tag_type_dropdown.Select( 0 )
-            
-            #
-            
-            services = [ service for service in HC.app.GetManager( 'services' ).GetServices( ( HC.LOCAL_TAG, HC.TAG_REPOSITORY ) ) if service.GetServiceKey() != self._service_key ]
-            
-            for service in services:
-                
-                self._service_key_dropdown.Append( service.GetName(), service.GetServiceKey() )
-                
-            
-            self._service_key_dropdown.Select( 0 )
-            
-        
-        def ArrangeControls():
-            
-            
-            hbox = wx.BoxSizer( wx.HORIZONTAL )
-            
-            hbox.AddF( self._action_dropdown, FLAGS_MIXED )
-            hbox.AddF( self._tag_type_dropdown, FLAGS_MIXED )
-            hbox.AddF( wx.StaticText( self._internal_actions, label = 'to' ), FLAGS_MIXED )
-            hbox.AddF( self._service_key_dropdown, FLAGS_MIXED )
-            hbox.AddF( self._go, FLAGS_MIXED )
-            
-            self._internal_actions.AddF( hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
-            
-            hbox = wx.BoxSizer( wx.HORIZONTAL )
-            
-            hbox.AddF( wx.StaticText( self._internal_actions, label = 'set specific tag or namespace: ' ), FLAGS_MIXED )
-            hbox.AddF( self._tag_input, FLAGS_EXPAND_BOTH_WAYS )
-            hbox.AddF( self._specific_tag, FLAGS_EXPAND_BOTH_WAYS )
-            
-            self._internal_actions.AddF( hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
-            
-            #
-            
-            self._external_actions.AddF( self._export_to_hta, FLAGS_LONE_BUTTON )
-            
-            #
-            
-            vbox = wx.BoxSizer( wx.VERTICAL )
-            
-            message = 'These advanced operations are powerful, so think before you click. They can lock up your client for a _long_ time, and are not undoable. You may need to refresh your existing searches to see their effect.' 
-            
-            st = wx.StaticText( self, label = message )
-            
-            st.Wrap( 360 )
-            
-            vbox.AddF( st, FLAGS_EXPAND_BOTH_WAYS )
-            vbox.AddF( self._internal_actions, FLAGS_EXPAND_PERPENDICULAR )
-            vbox.AddF( self._external_actions, FLAGS_EXPAND_PERPENDICULAR )
-            vbox.AddF( self._done, FLAGS_LONE_BUTTON )
-            
-            self.SetSizer( vbox )
-            
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            if x < 360: x = 360
-            
-            self.SetInitialSize( ( x, y ) )
-            
-        
-        Dialog.__init__( self, parent, 'Advanced Content Update' )
-        
-        self._service_key = service_key
-        self._tag = ''
-        self._hashes = hashes
-        
-        InitialiseControls()
-        
-        PopulateControls()
-        
-        ArrangeControls()
-        
-    
-    def EventChoice( self, event ):
-        
-        data = self._action_dropdown.GetChoice()
-        
-        if data in ( self.DELETE, self.DELETE_DELETED ): self._service_key_dropdown.Disable()
-        else: self._service_key_dropdown.Enable()
-        
-    
-    def EventExportToHTA( self, event ):
-        
-        with wx.FileDialog( self, style = wx.FD_SAVE, defaultFile = 'archive.db' ) as dlg:
-            
-            if dlg.ShowModal() == wx.ID_OK: path = dlg.GetPath()
-            else: return
-            
-        
-        message = 'Would you like to use hydrus\'s normal hash type, or an alternative?'
-        message += os.linesep * 2
-        message += 'Hydrus uses SHA256 to identify files, but other services use different standards. MD5, SHA1 and SHA512 are available, but only for local files, which may limit your export.'
-        message += os.linesep * 2
-        message += 'If you do not know what this stuff means, click \'normal\'.'
-        
-        with DialogYesNo( self, message, title = 'Choose which hash type.', yes_label = 'normal', no_label = 'alternative' ) as dlg:
-            
-            result = dlg.ShowModal()
-            
-            if result in ( wx.ID_YES, wx.ID_NO ):
-                
-                if result == wx.ID_YES: hash_type = HydrusTagArchive.HASH_TYPE_SHA256
-                else:
-                    
-                    with DialogSelectFromListOfStrings( self, 'Select the hash type', [ 'md5', 'sha1', 'sha512' ] ) as hash_dlg:
-                        
-                        if hash_dlg.ShowModal() == wx.ID_OK:
-                            
-                            s = hash_dlg.GetString()
-                            
-                            if s == 'md5': hash_type = HydrusTagArchive.HASH_TYPE_MD5
-                            elif s == 'sha1': hash_type = HydrusTagArchive.HASH_TYPE_SHA1
-                            elif s == 'sha512': hash_type = HydrusTagArchive.HASH_TYPE_SHA512
-                            
-                        else: return
-                        
-                    
-                
-                HC.app.Write( 'export_mappings', path, self._service_key, hash_type, self._hashes )
-                
-            
-        
-    
-    def EventGo( self, event ):
-        
-        with DialogYesNo( self, 'Are you sure?' ) as dlg:
-            
-            if dlg.ShowModal() != wx.ID_YES: return
-            
-        
-        action = self._action_dropdown.GetChoice()
-        
-        tag_type = self._tag_type_dropdown.GetChoice()
-        
-        if tag_type == self.ALL_MAPPINGS: tag = None
-        elif tag_type == self.SPECIFIC_MAPPINGS: tag = ( 'tag', self._tag )
-        elif tag_type == self.SPECIFIC_NAMESPACE:
-            
-            tag = self._tag
-            
-            if tag.endswith( ':' ): tag = tag[:-1]
-            
-            tag = ( 'namespace', tag )
-            
-        
-        if tag == '': return
-        
-        service_key_target = self._service_key_dropdown.GetChoice()
-        
-        if action == self.COPY:
-            
-            content_update = HC.ContentUpdate( HC.CONTENT_DATA_TYPE_MAPPINGS, HC.CONTENT_UPDATE_ADVANCED, ( 'copy', ( tag, self._hashes, service_key_target ) ) )
-            
-        elif action == self.DELETE:
-            
-            content_update = HC.ContentUpdate( HC.CONTENT_DATA_TYPE_MAPPINGS, HC.CONTENT_UPDATE_ADVANCED, ( 'delete', ( tag, self._hashes ) ) )
-            
-        elif action == self.DELETE_DELETED:
-            
-            content_update = HC.ContentUpdate( HC.CONTENT_DATA_TYPE_MAPPINGS, HC.CONTENT_UPDATE_ADVANCED, ( 'delete_deleted', ( tag, self._hashes ) ) )
-            
-        
-        service_keys_to_content_updates = { self._service_key : [ content_update ] }
-        
-        HC.app.Write( 'content_updates', service_keys_to_content_updates )
-        
-    
-    def SetSomeTag( self, tag, parents = [] ):
-        
-        self._tag = tag
-        
-        self._specific_tag.SetLabel( tag )
-        
-    
+	
+	COPY = 0
+	DELETE = 1
+	DELETE_DELETED = 2
+	
+	ALL_MAPPINGS = 0
+	SPECIFIC_MAPPINGS = 1
+	SPECIFIC_NAMESPACE = 2
+	
+	def __init__( self, parent, service_key, hashes = None ):
+		
+		def InitialiseControls():
+			
+			self._internal_actions = ClientGUICommon.StaticBox( self, 'internal' )
+			
+			self._action_dropdown = ClientGUICommon.BetterChoice( self._internal_actions )
+			self._action_dropdown.Bind( wx.EVT_CHOICE, self.EventChoice )
+			self._tag_type_dropdown = ClientGUICommon.BetterChoice( self._internal_actions )
+			self._service_key_dropdown = ClientGUICommon.BetterChoice( self._internal_actions )
+			
+			self._go = wx.Button( self._internal_actions, label = 'Go!' )
+			self._go.Bind( wx.EVT_BUTTON, self.EventGo )
+			
+			self._tag_input = ClientGUICommon.AutoCompleteDropdownTagsWrite( self._internal_actions, self.SetSomeTag, HC.COMBINED_FILE_SERVICE_KEY, self._service_key )
+			self._specific_tag = wx.StaticText( self._internal_actions, label = '', size = ( 100, -1 ) )
+			
+			#
+			
+			self._external_actions = ClientGUICommon.StaticBox( self, 'external' )
+			
+			self._export_to_hta = wx.Button( self._external_actions, label = 'export to hydrus tag archive' )
+			self._export_to_hta.Bind( wx.EVT_BUTTON, self.EventExportToHTA )
+			
+			#
+			
+			self._done = wx.Button( self, label = 'done' )
+			
+		
+		def PopulateControls():
+			
+			self._action_dropdown.Append( 'copy', self.COPY )
+			if self._service_key == HC.LOCAL_TAG_SERVICE_KEY:
+				
+				self._action_dropdown.Append( 'delete', self.DELETE )
+				self._action_dropdown.Append( 'clear deleted record', self.DELETE_DELETED )
+				
+			
+			self._action_dropdown.Select( 0 )
+			
+			#
+			
+			self._tag_type_dropdown.Append( 'all mappings', self.ALL_MAPPINGS )
+			self._tag_type_dropdown.Append( 'specific tag\'s mappings', self.SPECIFIC_MAPPINGS )
+			self._tag_type_dropdown.Append( 'specific namespace\'s mappings', self.SPECIFIC_NAMESPACE )
+			
+			self._tag_type_dropdown.Select( 0 )
+			
+			#
+			
+			services = [ service for service in HC.app.GetManager( 'services' ).GetServices( ( HC.LOCAL_TAG, HC.TAG_REPOSITORY ) ) if service.GetServiceKey() != self._service_key ]
+			
+			for service in services:
+				
+				self._service_key_dropdown.Append( service.GetName(), service.GetServiceKey() )
+				
+			
+			self._service_key_dropdown.Select( 0 )
+			
+		
+		def ArrangeControls():
+			
+			
+			hbox = wx.BoxSizer( wx.HORIZONTAL )
+			
+			hbox.AddF( self._action_dropdown, FLAGS_MIXED )
+			hbox.AddF( self._tag_type_dropdown, FLAGS_MIXED )
+			hbox.AddF( wx.StaticText( self._internal_actions, label = 'to' ), FLAGS_MIXED )
+			hbox.AddF( self._service_key_dropdown, FLAGS_MIXED )
+			hbox.AddF( self._go, FLAGS_MIXED )
+			
+			self._internal_actions.AddF( hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
+			
+			hbox = wx.BoxSizer( wx.HORIZONTAL )
+			
+			hbox.AddF( wx.StaticText( self._internal_actions, label = 'set specific tag or namespace: ' ), FLAGS_MIXED )
+			hbox.AddF( self._tag_input, FLAGS_EXPAND_BOTH_WAYS )
+			hbox.AddF( self._specific_tag, FLAGS_EXPAND_BOTH_WAYS )
+			
+			self._internal_actions.AddF( hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
+			
+			#
+			
+			self._external_actions.AddF( self._export_to_hta, FLAGS_LONE_BUTTON )
+			
+			#
+			
+			vbox = wx.BoxSizer( wx.VERTICAL )
+			
+			message = 'These advanced operations are powerful, so think before you click. They can lock up your client for a _long_ time, and are not undoable. You may need to refresh your existing searches to see their effect.' 
+			
+			st = wx.StaticText( self, label = message )
+			
+			st.Wrap( 360 )
+			
+			vbox.AddF( st, FLAGS_EXPAND_BOTH_WAYS )
+			vbox.AddF( self._internal_actions, FLAGS_EXPAND_PERPENDICULAR )
+			vbox.AddF( self._external_actions, FLAGS_EXPAND_PERPENDICULAR )
+			vbox.AddF( self._done, FLAGS_LONE_BUTTON )
+			
+			self.SetSizer( vbox )
+			
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			if x < 360: x = 360
+			
+			self.SetInitialSize( ( x, y ) )
+			
+		
+		Dialog.__init__( self, parent, 'Advanced Content Update' )
+		
+		self._service_key = service_key
+		self._tag = ''
+		self._hashes = hashes
+		
+		InitialiseControls()
+		
+		PopulateControls()
+		
+		ArrangeControls()
+		
+	
+	def EventChoice( self, event ):
+		
+		data = self._action_dropdown.GetChoice()
+		
+		if data in ( self.DELETE, self.DELETE_DELETED ): self._service_key_dropdown.Disable()
+		else: self._service_key_dropdown.Enable()
+		
+	
+	def EventExportToHTA( self, event ):
+		
+		with wx.FileDialog( self, style = wx.FD_SAVE, defaultFile = 'archive.db' ) as dlg:
+			
+			if dlg.ShowModal() == wx.ID_OK: path = dlg.GetPath()
+			else: return
+			
+		
+		message = 'Would you like to use hydrus\'s normal hash type, or an alternative?'
+		message += os.linesep * 2
+		message += 'Hydrus uses SHA256 to identify files, but other services use different standards. MD5, SHA1 and SHA512 are available, but only for local files, which may limit your export.'
+		message += os.linesep * 2
+		message += 'If you do not know what this stuff means, click \'normal\'.'
+		
+		with DialogYesNo( self, message, title = 'Choose which hash type.', yes_label = 'normal', no_label = 'alternative' ) as dlg:
+			
+			result = dlg.ShowModal()
+			
+			if result in ( wx.ID_YES, wx.ID_NO ):
+				
+				if result == wx.ID_YES: hash_type = HydrusTagArchive.HASH_TYPE_SHA256
+				else:
+					
+					with DialogSelectFromListOfStrings( self, 'Select the hash type', [ 'md5', 'sha1', 'sha512' ] ) as hash_dlg:
+						
+						if hash_dlg.ShowModal() == wx.ID_OK:
+							
+							s = hash_dlg.GetString()
+							
+							if s == 'md5': hash_type = HydrusTagArchive.HASH_TYPE_MD5
+							elif s == 'sha1': hash_type = HydrusTagArchive.HASH_TYPE_SHA1
+							elif s == 'sha512': hash_type = HydrusTagArchive.HASH_TYPE_SHA512
+							
+						else: return
+						
+					
+				
+				HC.app.Write( 'export_mappings', path, self._service_key, hash_type, self._hashes )
+				
+			
+		
+	
+	def EventGo( self, event ):
+		
+		with DialogYesNo( self, 'Are you sure?' ) as dlg:
+			
+			if dlg.ShowModal() != wx.ID_YES: return
+			
+		
+		action = self._action_dropdown.GetChoice()
+		
+		tag_type = self._tag_type_dropdown.GetChoice()
+		
+		if tag_type == self.ALL_MAPPINGS: tag = None
+		elif tag_type == self.SPECIFIC_MAPPINGS: tag = ( 'tag', self._tag )
+		elif tag_type == self.SPECIFIC_NAMESPACE:
+			
+			tag = self._tag
+			
+			if tag.endswith( ':' ): tag = tag[:-1]
+			
+			tag = ( 'namespace', tag )
+			
+		
+		if tag == '': return
+		
+		service_key_target = self._service_key_dropdown.GetChoice()
+		
+		if action == self.COPY:
+			
+			content_update = HC.ContentUpdate( HC.CONTENT_DATA_TYPE_MAPPINGS, HC.CONTENT_UPDATE_ADVANCED, ( 'copy', ( tag, self._hashes, service_key_target ) ) )
+			
+		elif action == self.DELETE:
+			
+			content_update = HC.ContentUpdate( HC.CONTENT_DATA_TYPE_MAPPINGS, HC.CONTENT_UPDATE_ADVANCED, ( 'delete', ( tag, self._hashes ) ) )
+			
+		elif action == self.DELETE_DELETED:
+			
+			content_update = HC.ContentUpdate( HC.CONTENT_DATA_TYPE_MAPPINGS, HC.CONTENT_UPDATE_ADVANCED, ( 'delete_deleted', ( tag, self._hashes ) ) )
+			
+		
+		service_keys_to_content_updates = { self._service_key : [ content_update ] }
+		
+		HC.app.Write( 'content_updates', service_keys_to_content_updates )
+		
+	
+	def SetSomeTag( self, tag, parents = [] ):
+		
+		self._tag = tag
+		
+		self._specific_tag.SetLabel( tag )
+		
+	
 class DialogButtonChoice( Dialog ):
-    
-    def __init__( self, parent, intro, choices ):
-        
-        def InitialiseControls():
-            
-            self._hidden_cancel = wx.Button( self, id = wx.ID_CANCEL, size = ( 0, 0 ) )
-            
-            self._buttons = []
-            self._ids_to_data = {}
-            
-            i = 0
-            
-            for ( text, data ) in choices:
-                
-                self._buttons.append( wx.Button( self, label = text, id = i ) )
-                
-                self._ids_to_data[ i ] = data
-                
-                i += 1
-                
-            
-        
-        def PopulateControls():
-            
-            pass
-            
-        
-        def ArrangeControls():
-            
-            vbox = wx.BoxSizer( wx.VERTICAL )
-            
-            vbox.AddF( wx.StaticText( self, label = intro ), FLAGS_EXPAND_PERPENDICULAR )
-            
-            for button in self._buttons: vbox.AddF( button, FLAGS_EXPAND_PERPENDICULAR )
-            
-            self.SetSizer( vbox )
-            
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-        
-        Dialog.__init__( self, parent, 'choose what to do', position = 'center' )
-        
-        InitialiseControls()
-        
-        PopulateControls()
-        
-        ArrangeControls()
-        
-        self.Bind( wx.EVT_BUTTON, self.EventButton )
-        
-        wx.CallAfter( self._buttons[0].SetFocus )
-        
-    
-    def EventButton( self, event ):
-        
-        id = event.GetId()
-        
-        if id == wx.ID_CANCEL: self.EndModal( wx.ID_CANCEL )
-        else:
-            
-            self._data = self._ids_to_data[ id ]
-            
-            self.EndModal( wx.ID_OK )
-            
-        
-    
-    def GetData( self ): return self._data
-    
+	
+	def __init__( self, parent, intro, choices ):
+		
+		def InitialiseControls():
+			
+			self._hidden_cancel = wx.Button( self, id = wx.ID_CANCEL, size = ( 0, 0 ) )
+			
+			self._buttons = []
+			self._ids_to_data = {}
+			
+			i = 0
+			
+			for ( text, data ) in choices:
+				
+				self._buttons.append( wx.Button( self, label = text, id = i ) )
+				
+				self._ids_to_data[ i ] = data
+				
+				i += 1
+				
+			
+		
+		def PopulateControls():
+			
+			pass
+			
+		
+		def ArrangeControls():
+			
+			vbox = wx.BoxSizer( wx.VERTICAL )
+			
+			vbox.AddF( wx.StaticText( self, label = intro ), FLAGS_EXPAND_PERPENDICULAR )
+			
+			for button in self._buttons: vbox.AddF( button, FLAGS_EXPAND_PERPENDICULAR )
+			
+			self.SetSizer( vbox )
+			
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+		
+		Dialog.__init__( self, parent, 'choose what to do', position = 'center' )
+		
+		InitialiseControls()
+		
+		PopulateControls()
+		
+		ArrangeControls()
+		
+		self.Bind( wx.EVT_BUTTON, self.EventButton )
+		
+		wx.CallAfter( self._buttons[0].SetFocus )
+		
+	
+	def EventButton( self, event ):
+		
+		id = event.GetId()
+		
+		if id == wx.ID_CANCEL: self.EndModal( wx.ID_CANCEL )
+		else:
+			
+			self._data = self._ids_to_data[ id ]
+			
+			self.EndModal( wx.ID_OK )
+			
+		
+	
+	def GetData( self ): return self._data
+	
 class DialogChooseNewServiceMethod( Dialog ):
-    
-    def __init__( self, parent ):
-        
-        def InitialiseControls():
-            
-            self._hidden_cancel = wx.Button( self, id = wx.ID_CANCEL, size = ( 0, 0 ) )
-            
-            register_message = 'I want to initialise a new account with the server. I have a registration key (a key starting with \'r\').'
-            
-            self._register = wx.Button( self, label = register_message )
-            self._register.Bind( wx.EVT_BUTTON, self.EventRegister )
-            
-            setup_message = 'The account is already initialised; I just want to add it to this client. I have a normal access key.'
-            
-            self._setup = wx.Button( self, id = wx.ID_OK, label = setup_message )
-            
-        
-        def PopulateControls():
-            
-            pass
-            
-        
-        def ArrangeControls():
-            
-            vbox = wx.BoxSizer( wx.VERTICAL )
-            
-            vbox.AddF( self._register, FLAGS_EXPAND_PERPENDICULAR )
-            vbox.AddF( wx.StaticText( self, label = '-or-', style = wx.ALIGN_CENTER ), FLAGS_EXPAND_PERPENDICULAR )
-            vbox.AddF( self._setup, FLAGS_EXPAND_PERPENDICULAR )
-            
-            self.SetSizer( vbox )
-            
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-        
-        Dialog.__init__( self, parent, 'how to set up the account?', position = 'center' )
-        
-        InitialiseControls()
-        
-        PopulateControls()
-        
-        ArrangeControls()
-        
-        self._should_register = False
-        
-        wx.CallAfter( self._register.SetFocus )
-        
-    
-    def EventRegister( self, event ):
-        
-        self._should_register = True
-        
-        self.EndModal( wx.ID_OK )
-        
-    
-    def GetRegister( self ): return self._should_register
-    
+	
+	def __init__( self, parent ):
+		
+		def InitialiseControls():
+			
+			self._hidden_cancel = wx.Button( self, id = wx.ID_CANCEL, size = ( 0, 0 ) )
+			
+			register_message = 'I want to initialise a new account with the server. I have a registration key (a key starting with \'r\').'
+			
+			self._register = wx.Button( self, label = register_message )
+			self._register.Bind( wx.EVT_BUTTON, self.EventRegister )
+			
+			setup_message = 'The account is already initialised; I just want to add it to this client. I have a normal access key.'
+			
+			self._setup = wx.Button( self, id = wx.ID_OK, label = setup_message )
+			
+		
+		def PopulateControls():
+			
+			pass
+			
+		
+		def ArrangeControls():
+			
+			vbox = wx.BoxSizer( wx.VERTICAL )
+			
+			vbox.AddF( self._register, FLAGS_EXPAND_PERPENDICULAR )
+			vbox.AddF( wx.StaticText( self, label = '-or-', style = wx.ALIGN_CENTER ), FLAGS_EXPAND_PERPENDICULAR )
+			vbox.AddF( self._setup, FLAGS_EXPAND_PERPENDICULAR )
+			
+			self.SetSizer( vbox )
+			
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+		
+		Dialog.__init__( self, parent, 'how to set up the account?', position = 'center' )
+		
+		InitialiseControls()
+		
+		PopulateControls()
+		
+		ArrangeControls()
+		
+		self._should_register = False
+		
+		wx.CallAfter( self._register.SetFocus )
+		
+	
+	def EventRegister( self, event ):
+		
+		self._should_register = True
+		
+		self.EndModal( wx.ID_OK )
+		
+	
+	def GetRegister( self ): return self._should_register
+	
 class DialogFinishFiltering( Dialog ):
-    
-    def __init__( self, parent, num_kept, num_deleted, keep = 'keep', delete = 'delete' ):
-        
-        def InitialiseControls():
-            
-            self._commit = wx.Button( self, id = wx.ID_YES, label = 'commit' )
-            self._commit.SetForegroundColour( ( 0, 128, 0 ) )
-            
-            self._forget = wx.Button( self, id = wx.ID_NO, label = 'forget' )
-            self._forget.SetForegroundColour( ( 128, 0, 0 ) )
-            
-            self._back = wx.Button( self, id = wx.ID_CANCEL, label = 'back to filtering' )
-            
-        
-        def PopulateControls():
-            
-            pass
-            
-        
-        def ArrangeControls():
-            
-            hbox = wx.BoxSizer( wx.HORIZONTAL )
-            
-            hbox.AddF( self._commit, FLAGS_EXPAND_BOTH_WAYS )
-            hbox.AddF( self._forget, FLAGS_EXPAND_BOTH_WAYS )
-            
-            vbox = wx.BoxSizer( wx.VERTICAL )
-            
-            label = keep + ' ' + HC.ConvertIntToPrettyString( num_kept ) + ' and ' + delete + ' ' + HC.ConvertIntToPrettyString( num_deleted ) + ' files?'
-            
-            vbox.AddF( wx.StaticText( self, label = label, style = wx.ALIGN_CENTER ), FLAGS_EXPAND_PERPENDICULAR )
-            vbox.AddF( hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
-            vbox.AddF( wx.StaticText( self, label = '-or-', style = wx.ALIGN_CENTER ), FLAGS_EXPAND_PERPENDICULAR )
-            vbox.AddF( self._back, FLAGS_EXPAND_PERPENDICULAR )
-            
-            self.SetSizer( vbox )
-            
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-        
-        Dialog.__init__( self, parent, 'are you sure?', position = 'center' )
-        
-        InitialiseControls()
-        
-        PopulateControls()
-        
-        ArrangeControls()
-        
-        wx.CallAfter( self._commit.SetFocus )
-        
-    
+	
+	def __init__( self, parent, num_kept, num_deleted, keep = 'keep', delete = 'delete' ):
+		
+		def InitialiseControls():
+			
+			self._commit = wx.Button( self, id = wx.ID_YES, label = 'commit' )
+			self._commit.SetForegroundColour( ( 0, 128, 0 ) )
+			
+			self._forget = wx.Button( self, id = wx.ID_NO, label = 'forget' )
+			self._forget.SetForegroundColour( ( 128, 0, 0 ) )
+			
+			self._back = wx.Button( self, id = wx.ID_CANCEL, label = 'back to filtering' )
+			
+		
+		def PopulateControls():
+			
+			pass
+			
+		
+		def ArrangeControls():
+			
+			hbox = wx.BoxSizer( wx.HORIZONTAL )
+			
+			hbox.AddF( self._commit, FLAGS_EXPAND_BOTH_WAYS )
+			hbox.AddF( self._forget, FLAGS_EXPAND_BOTH_WAYS )
+			
+			vbox = wx.BoxSizer( wx.VERTICAL )
+			
+			label = keep + ' ' + HC.ConvertIntToPrettyString( num_kept ) + ' and ' + delete + ' ' + HC.ConvertIntToPrettyString( num_deleted ) + ' files?'
+			
+			vbox.AddF( wx.StaticText( self, label = label, style = wx.ALIGN_CENTER ), FLAGS_EXPAND_PERPENDICULAR )
+			vbox.AddF( hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
+			vbox.AddF( wx.StaticText( self, label = '-or-', style = wx.ALIGN_CENTER ), FLAGS_EXPAND_PERPENDICULAR )
+			vbox.AddF( self._back, FLAGS_EXPAND_PERPENDICULAR )
+			
+			self.SetSizer( vbox )
+			
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+		
+		Dialog.__init__( self, parent, 'are you sure?', position = 'center' )
+		
+		InitialiseControls()
+		
+		PopulateControls()
+		
+		ArrangeControls()
+		
+		wx.CallAfter( self._commit.SetFocus )
+		
+	
 class DialogFinishRatingFiltering( Dialog ):
-    
-    def __init__( self, parent, num_certain_ratings, num_uncertain_ratings ):
-        
-        def InitialiseControls():
-            
-            self._commit = wx.Button( self, id = wx.ID_YES, label = 'commit' )
-            self._commit.SetForegroundColour( ( 0, 128, 0 ) )
-            
-            self._forget = wx.Button( self, id = wx.ID_NO, label = 'forget' )
-            self._forget.SetForegroundColour( ( 128, 0, 0 ) )
-            
-            self._back = wx.Button( self, id = wx.ID_CANCEL, label = 'back to filtering' )
-            
-        
-        def PopulateControls():
-            
-            pass
-            
-        
-        def ArrangeControls():
-            
-            hbox = wx.BoxSizer( wx.HORIZONTAL )
-            
-            hbox.AddF( self._commit, FLAGS_EXPAND_BOTH_WAYS )
-            hbox.AddF( self._forget, FLAGS_EXPAND_BOTH_WAYS )
-            
-            vbox = wx.BoxSizer( wx.VERTICAL )
-            
-            info_strings = []
-            
-            if num_certain_ratings > 0: info_strings.append( HC.ConvertIntToPrettyString( num_certain_ratings ) + ' ratings' )
-            if num_uncertain_ratings > 0: info_strings.append( HC.ConvertIntToPrettyString( num_uncertain_ratings ) + ' uncertain changes' )
-            
-            label = 'Apply ' + ' and '.join( info_strings ) + '?'
-            
-            vbox.AddF( wx.StaticText( self, label = label, style = wx.ALIGN_CENTER ), FLAGS_EXPAND_PERPENDICULAR )
-            vbox.AddF( hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
-            vbox.AddF( wx.StaticText( self, label = '-or-', style = wx.ALIGN_CENTER ), FLAGS_EXPAND_PERPENDICULAR )
-            vbox.AddF( self._back, FLAGS_EXPAND_PERPENDICULAR )
-            
-            self.SetSizer( vbox )
-            
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-        
-        Dialog.__init__( self, parent, 'are you sure?', position = 'center' )
-        
-        InitialiseControls()
-        
-        PopulateControls()
-        
-        ArrangeControls()
-        
-        wx.CallAfter( self._commit.SetFocus )
-        
-    
+	
+	def __init__( self, parent, num_certain_ratings, num_uncertain_ratings ):
+		
+		def InitialiseControls():
+			
+			self._commit = wx.Button( self, id = wx.ID_YES, label = 'commit' )
+			self._commit.SetForegroundColour( ( 0, 128, 0 ) )
+			
+			self._forget = wx.Button( self, id = wx.ID_NO, label = 'forget' )
+			self._forget.SetForegroundColour( ( 128, 0, 0 ) )
+			
+			self._back = wx.Button( self, id = wx.ID_CANCEL, label = 'back to filtering' )
+			
+		
+		def PopulateControls():
+			
+			pass
+			
+		
+		def ArrangeControls():
+			
+			hbox = wx.BoxSizer( wx.HORIZONTAL )
+			
+			hbox.AddF( self._commit, FLAGS_EXPAND_BOTH_WAYS )
+			hbox.AddF( self._forget, FLAGS_EXPAND_BOTH_WAYS )
+			
+			vbox = wx.BoxSizer( wx.VERTICAL )
+			
+			info_strings = []
+			
+			if num_certain_ratings > 0: info_strings.append( HC.ConvertIntToPrettyString( num_certain_ratings ) + ' ratings' )
+			if num_uncertain_ratings > 0: info_strings.append( HC.ConvertIntToPrettyString( num_uncertain_ratings ) + ' uncertain changes' )
+			
+			label = 'Apply ' + ' and '.join( info_strings ) + '?'
+			
+			vbox.AddF( wx.StaticText( self, label = label, style = wx.ALIGN_CENTER ), FLAGS_EXPAND_PERPENDICULAR )
+			vbox.AddF( hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
+			vbox.AddF( wx.StaticText( self, label = '-or-', style = wx.ALIGN_CENTER ), FLAGS_EXPAND_PERPENDICULAR )
+			vbox.AddF( self._back, FLAGS_EXPAND_PERPENDICULAR )
+			
+			self.SetSizer( vbox )
+			
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+		
+		Dialog.__init__( self, parent, 'are you sure?', position = 'center' )
+		
+		InitialiseControls()
+		
+		PopulateControls()
+		
+		ArrangeControls()
+		
+		wx.CallAfter( self._commit.SetFocus )
+		
+	
 class DialogFirstStart( Dialog ):
-    
-    def __init__( self, parent ):
-        
-        def InitialiseControls():
-            
-            self._hidden_cancel = wx.Button( self, id = wx.ID_CANCEL, size = ( 0, 0 ) )
-            
-            self._ok = wx.Button( self, id = wx.ID_OK, label = 'ok!' )
-            self._ok.SetForegroundColour( ( 0, 128, 0 ) )
-            
-        
-        def PopulateControls():
-            
-            pass
-            
-        
-        def ArrangeControls():
-            
-            message1 = 'Hi, this looks like the first time you have started the hydrus client. Don\'t forget to check out the'
-            link = wx.HyperlinkCtrl( self, id = -1, label = 'help', url = 'file://' + HC.BASE_DIR + '/help/index.html' )
-            message2 = 'if you haven\'t already.'
-            message3 = 'When you close this dialog, the client will start its local http server. You will probably get a firewall warning.'
-            message4 = 'You can block it if you like, or you can allow it. It doesn\'t phone home, or expose your files to your network; it just provides another way to locally export your files.'
-            
-            hbox = wx.BoxSizer( wx.HORIZONTAL )
-            
-            hbox.AddF( wx.StaticText( self, label = message1 ), FLAGS_MIXED )
-            hbox.AddF( link, FLAGS_MIXED )
-            hbox.AddF( wx.StaticText( self, label = message2 ), FLAGS_MIXED )
-            
-            vbox = wx.BoxSizer( wx.VERTICAL )
-            
-            vbox.AddF( hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
-            
-            vbox.AddF( wx.StaticText( self, label = message3 ), FLAGS_EXPAND_PERPENDICULAR )
-            vbox.AddF( wx.StaticText( self, label = message4 ), FLAGS_EXPAND_PERPENDICULAR )
-            vbox.AddF( self._ok, FLAGS_LONE_BUTTON )
-            
-            self.SetSizer( vbox )
-            
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-        
-        Dialog.__init__( self, parent, 'First start', position = 'center' )
-        
-        InitialiseControls()
-        
-        PopulateControls()
-        
-        ArrangeControls()
-        
-        wx.CallAfter( self._ok.SetFocus )
-        
-    
+	
+	def __init__( self, parent ):
+		
+		def InitialiseControls():
+			
+			self._hidden_cancel = wx.Button( self, id = wx.ID_CANCEL, size = ( 0, 0 ) )
+			
+			self._ok = wx.Button( self, id = wx.ID_OK, label = 'ok!' )
+			self._ok.SetForegroundColour( ( 0, 128, 0 ) )
+			
+		
+		def PopulateControls():
+			
+			pass
+			
+		
+		def ArrangeControls():
+			
+			message1 = 'Hi, this looks like the first time you have started the hydrus client. Don\'t forget to check out the'
+			link = wx.HyperlinkCtrl( self, id = -1, label = 'help', url = 'file://' + HC.BASE_DIR + '/help/index.html' )
+			message2 = 'if you haven\'t already.'
+			message3 = 'When you close this dialog, the client will start its local http server. You will probably get a firewall warning.'
+			message4 = 'You can block it if you like, or you can allow it. It doesn\'t phone home, or expose your files to your network; it just provides another way to locally export your files.'
+			
+			hbox = wx.BoxSizer( wx.HORIZONTAL )
+			
+			hbox.AddF( wx.StaticText( self, label = message1 ), FLAGS_MIXED )
+			hbox.AddF( link, FLAGS_MIXED )
+			hbox.AddF( wx.StaticText( self, label = message2 ), FLAGS_MIXED )
+			
+			vbox = wx.BoxSizer( wx.VERTICAL )
+			
+			vbox.AddF( hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
+			
+			vbox.AddF( wx.StaticText( self, label = message3 ), FLAGS_EXPAND_PERPENDICULAR )
+			vbox.AddF( wx.StaticText( self, label = message4 ), FLAGS_EXPAND_PERPENDICULAR )
+			vbox.AddF( self._ok, FLAGS_LONE_BUTTON )
+			
+			self.SetSizer( vbox )
+			
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+		
+		Dialog.__init__( self, parent, 'First start', position = 'center' )
+		
+		InitialiseControls()
+		
+		PopulateControls()
+		
+		ArrangeControls()
+		
+		wx.CallAfter( self._ok.SetFocus )
+		
+	
 class DialogGenerateNewAccounts( Dialog ):
-    
-    def __init__( self, parent, service_key ):
-        
-        def InitialiseControls():
-            
-            self._num = wx.SpinCtrl( self, min = 1, max = 10000, size = ( 80, -1 ) )
-            
-            self._account_types = wx.Choice( self, size = ( 400, -1 ) )
-            
-            self._lifetime = wx.Choice( self )
-            
-            self._ok = wx.Button( self, label = 'Ok' )
-            self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
-            self._ok.SetForegroundColour( ( 0, 128, 0 ) )
-            
-            self._cancel = wx.Button( self, id = wx.ID_CANCEL, label = 'Cancel' )
-            self._cancel.SetForegroundColour( ( 128, 0, 0 ) )
-            
-        
-        def PopulateControls():
-            
-            self._num.SetValue( 1 )
-            
-            service = HC.app.GetManager( 'services' ).GetService( service_key )
-            
-            response = service.Request( HC.GET, 'account_types' )
-            
-            account_types = response[ 'account_types' ]
-            
-            for account_type in account_types: self._account_types.Append( account_type.ConvertToString(), account_type )
-            self._account_types.SetSelection( 0 ) # admin
-            
-            for ( str, value ) in HC.lifetimes: self._lifetime.Append( str, value )
-            self._lifetime.SetSelection( 3 ) # one year
-            
-        
-        def ArrangeControls():
-            
-            ctrl_box = wx.BoxSizer( wx.HORIZONTAL )
-            
-            ctrl_box.AddF( wx.StaticText( self, label = 'generate' ), FLAGS_MIXED )
-            ctrl_box.AddF( self._num, FLAGS_MIXED )
-            ctrl_box.AddF( self._account_types, FLAGS_MIXED )
-            ctrl_box.AddF( wx.StaticText( self, label = 'accounts, to expire in' ), FLAGS_MIXED )
-            ctrl_box.AddF( self._lifetime, FLAGS_MIXED )
-            
-            b_box = wx.BoxSizer( wx.HORIZONTAL )
-            b_box.AddF( self._ok, FLAGS_MIXED )
-            b_box.AddF( self._cancel, FLAGS_MIXED )
-            
-            vbox = wx.BoxSizer( wx.VERTICAL )
-            
-            vbox.AddF( ctrl_box, FLAGS_EXPAND_SIZER_PERPENDICULAR )
-            vbox.AddF( b_box, FLAGS_BUTTON_SIZER )
-            
-            self.SetSizer( vbox )
-            
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-        
-        Dialog.__init__( self, parent, 'configure new accounts' )
-        
-        self._service_key = service_key
-        
-        InitialiseControls()
-        
-        PopulateControls()
-        
-        ArrangeControls()
-        
-        wx.CallAfter( self._ok.SetFocus )
-        
-    
-    def EventOK( self, event ):
-        
-        num = self._num.GetValue()
-        
-        account_type = self._account_types.GetClientData( self._account_types.GetSelection() )
-        
-        title = account_type.GetTitle()
-        
-        lifetime = self._lifetime.GetClientData( self._lifetime.GetSelection() )
-        
-        service = HC.app.GetManager( 'services' ).GetService( self._service_key )
-        
-        try:
-            
-            request_args = { 'num' : num, 'title' : title }
-            
-            if lifetime is not None: request_args[ 'lifetime' ] = lifetime
-            
-            response = service.Request( HC.GET, 'registration_keys', request_args )
-            
-            registration_keys = response[ 'registration_keys' ]
-            
-            ClientGUICommon.ShowKeys( 'registration', registration_keys )
-            
-        finally: self.EndModal( wx.ID_OK )
-        
-    
+	
+	def __init__( self, parent, service_key ):
+		
+		def InitialiseControls():
+			
+			self._num = wx.SpinCtrl( self, min = 1, max = 10000, size = ( 80, -1 ) )
+			
+			self._account_types = wx.Choice( self, size = ( 400, -1 ) )
+			
+			self._lifetime = wx.Choice( self )
+			
+			self._ok = wx.Button( self, label = 'Ok' )
+			self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
+			self._ok.SetForegroundColour( ( 0, 128, 0 ) )
+			
+			self._cancel = wx.Button( self, id = wx.ID_CANCEL, label = 'Cancel' )
+			self._cancel.SetForegroundColour( ( 128, 0, 0 ) )
+			
+		
+		def PopulateControls():
+			
+			self._num.SetValue( 1 )
+			
+			service = HC.app.GetManager( 'services' ).GetService( service_key )
+			
+			response = service.Request( HC.GET, 'account_types' )
+			
+			account_types = response[ 'account_types' ]
+			
+			for account_type in account_types: self._account_types.Append( account_type.ConvertToString(), account_type )
+			self._account_types.SetSelection( 0 ) # admin
+			
+			for ( str, value ) in HC.lifetimes: self._lifetime.Append( str, value )
+			self._lifetime.SetSelection( 3 ) # one year
+			
+		
+		def ArrangeControls():
+			
+			ctrl_box = wx.BoxSizer( wx.HORIZONTAL )
+			
+			ctrl_box.AddF( wx.StaticText( self, label = 'generate' ), FLAGS_MIXED )
+			ctrl_box.AddF( self._num, FLAGS_MIXED )
+			ctrl_box.AddF( self._account_types, FLAGS_MIXED )
+			ctrl_box.AddF( wx.StaticText( self, label = 'accounts, to expire in' ), FLAGS_MIXED )
+			ctrl_box.AddF( self._lifetime, FLAGS_MIXED )
+			
+			b_box = wx.BoxSizer( wx.HORIZONTAL )
+			b_box.AddF( self._ok, FLAGS_MIXED )
+			b_box.AddF( self._cancel, FLAGS_MIXED )
+			
+			vbox = wx.BoxSizer( wx.VERTICAL )
+			
+			vbox.AddF( ctrl_box, FLAGS_EXPAND_SIZER_PERPENDICULAR )
+			vbox.AddF( b_box, FLAGS_BUTTON_SIZER )
+			
+			self.SetSizer( vbox )
+			
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+		
+		Dialog.__init__( self, parent, 'configure new accounts' )
+		
+		self._service_key = service_key
+		
+		InitialiseControls()
+		
+		PopulateControls()
+		
+		ArrangeControls()
+		
+		wx.CallAfter( self._ok.SetFocus )
+		
+	
+	def EventOK( self, event ):
+		
+		num = self._num.GetValue()
+		
+		account_type = self._account_types.GetClientData( self._account_types.GetSelection() )
+		
+		title = account_type.GetTitle()
+		
+		lifetime = self._lifetime.GetClientData( self._lifetime.GetSelection() )
+		
+		service = HC.app.GetManager( 'services' ).GetService( self._service_key )
+		
+		try:
+			
+			request_args = { 'num' : num, 'title' : title }
+			
+			if lifetime is not None: request_args[ 'lifetime' ] = lifetime
+			
+			response = service.Request( HC.GET, 'registration_keys', request_args )
+			
+			registration_keys = response[ 'registration_keys' ]
+			
+			ClientGUICommon.ShowKeys( 'registration', registration_keys )
+			
+		finally: self.EndModal( wx.ID_OK )
+		
+	
 class DialogInputAdvancedTagOptions( Dialog ):
-    
-    def __init__( self, parent, pretty_name, name, ato ):
-        
-        def InitialiseControls():
-            
-            if name in ( 'default', HC.SITE_TYPE_BOORU ): namespaces = [ 'all namespaces' ]
-            elif name == HC.SITE_TYPE_DEVIANT_ART: namespaces = [ 'creator', 'title', '' ]
-            elif name == HC.SITE_TYPE_GIPHY: namespaces = [ '' ]
-            elif name == HC.SITE_TYPE_HENTAI_FOUNDRY: namespaces = [ 'creator', 'title', '' ]
-            elif name == HC.SITE_TYPE_NEWGROUNDS: namespaces = [ 'creator', 'title', '' ]
-            elif name == HC.SITE_TYPE_PIXIV: namespaces = [ 'creator', 'title', '' ]
-            elif name == HC.SITE_TYPE_TUMBLR: namespaces = [ '' ]
-            else:
-                
-                ( booru_id, booru_name ) = name
-                
-                booru = HC.app.Read( 'remote_booru', booru_name )
-                
-                namespaces = booru.GetNamespaces()
-                
-            
-            self._name = name
-            
-            self._advanced_tag_options = ClientGUICommon.AdvancedTagOptions( self, namespaces = namespaces )
-            
-            self._ok = wx.Button( self, id = wx.ID_OK, label = 'ok' )
-            self._ok.SetForegroundColour( ( 0, 128, 0 ) )
-            
-            self._cancel = wx.Button( self, id = wx.ID_CANCEL, label = 'cancel' )
-            self._cancel.SetForegroundColour( ( 128, 0, 0 ) )
-            
-        
-        def PopulateControls():
-            
-            if name in ( 'default', HC.SITE_TYPE_BOORU ):
-                
-                namespaces = [ 'all namespaces' ]
-                
-                new_ato = {}
-                
-                for ( service_key, boolean ) in self._initial_ato.items():
-                    
-                    if boolean: new_ato[ service_key ] = [ 'all namespaces' ]
-                    
-                
-                self._initial_ato = new_ato
-                
-            
-            self._advanced_tag_options.SetInfo( self._initial_ato )
-            
-        
-        def ArrangeControls():
-            
-            b_box = wx.BoxSizer( wx.HORIZONTAL )
-            b_box.AddF( self._ok, FLAGS_MIXED )
-            b_box.AddF( self._cancel, FLAGS_MIXED )
-            
-            vbox = wx.BoxSizer( wx.VERTICAL )
-            
-            vbox.AddF( self._advanced_tag_options, FLAGS_EXPAND_BOTH_WAYS )
-            vbox.AddF( b_box, FLAGS_BUTTON_SIZER )
-            
-            self.SetSizer( vbox )
-            
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-        
-        self._name = name
-        self._initial_ato = ato
-        
-        Dialog.__init__( self, parent, 'configure default advanced tag options for ' + pretty_name )
-        
-        InitialiseControls()
-        
-        PopulateControls()
-        
-        ArrangeControls()
-        
-        wx.CallAfter( self._advanced_tag_options.ExpandCollapse )
-        
-    
-    def GetATO( self ):
-        
-        ato = self._advanced_tag_options.GetInfo()
-        
-        if self._name in ( 'default', HC.SITE_TYPE_BOORU ):
-            
-            new_ato = {}
-            
-            for ( service_key, namespaces ) in ato.items():
-                
-                if namespaces == [ 'all namespaces' ]: new_ato[ service_key ] = True
-                
-            
-            ato = new_ato
-            
-        
-        return ato
-        
-    
+	
+	def __init__( self, parent, pretty_name, name, ato ):
+		
+		def InitialiseControls():
+			
+			if name in ( 'default', HC.SITE_TYPE_BOORU ): namespaces = [ 'all namespaces' ]
+			elif name == HC.SITE_TYPE_DEVIANT_ART: namespaces = [ 'creator', 'title', '' ]
+			elif name == HC.SITE_TYPE_GIPHY: namespaces = [ '' ]
+			elif name == HC.SITE_TYPE_HENTAI_FOUNDRY: namespaces = [ 'creator', 'title', '' ]
+			elif name == HC.SITE_TYPE_NEWGROUNDS: namespaces = [ 'creator', 'title', '' ]
+			elif name == HC.SITE_TYPE_PIXIV: namespaces = [ 'creator', 'title', '' ]
+			elif name == HC.SITE_TYPE_TUMBLR: namespaces = [ '' ]
+			else:
+				
+				( booru_id, booru_name ) = name
+				
+				booru = HC.app.Read( 'remote_booru', booru_name )
+				
+				namespaces = booru.GetNamespaces()
+				
+			
+			self._name = name
+			
+			self._advanced_tag_options = ClientGUICommon.AdvancedTagOptions( self, namespaces = namespaces )
+			
+			self._ok = wx.Button( self, id = wx.ID_OK, label = 'ok' )
+			self._ok.SetForegroundColour( ( 0, 128, 0 ) )
+			
+			self._cancel = wx.Button( self, id = wx.ID_CANCEL, label = 'cancel' )
+			self._cancel.SetForegroundColour( ( 128, 0, 0 ) )
+			
+		
+		def PopulateControls():
+			
+			if name in ( 'default', HC.SITE_TYPE_BOORU ):
+				
+				namespaces = [ 'all namespaces' ]
+				
+				new_ato = {}
+				
+				for ( service_key, boolean ) in self._initial_ato.items():
+					
+					if boolean: new_ato[ service_key ] = [ 'all namespaces' ]
+					
+				
+				self._initial_ato = new_ato
+				
+			
+			self._advanced_tag_options.SetInfo( self._initial_ato )
+			
+		
+		def ArrangeControls():
+			
+			b_box = wx.BoxSizer( wx.HORIZONTAL )
+			b_box.AddF( self._ok, FLAGS_MIXED )
+			b_box.AddF( self._cancel, FLAGS_MIXED )
+			
+			vbox = wx.BoxSizer( wx.VERTICAL )
+			
+			vbox.AddF( self._advanced_tag_options, FLAGS_EXPAND_BOTH_WAYS )
+			vbox.AddF( b_box, FLAGS_BUTTON_SIZER )
+			
+			self.SetSizer( vbox )
+			
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+		
+		self._name = name
+		self._initial_ato = ato
+		
+		Dialog.__init__( self, parent, 'configure default advanced tag options for ' + pretty_name )
+		
+		InitialiseControls()
+		
+		PopulateControls()
+		
+		ArrangeControls()
+		
+		wx.CallAfter( self._advanced_tag_options.ExpandCollapse )
+		
+	
+	def GetATO( self ):
+		
+		ato = self._advanced_tag_options.GetInfo()
+		
+		if self._name in ( 'default', HC.SITE_TYPE_BOORU ):
+			
+			new_ato = {}
+			
+			for ( service_key, namespaces ) in ato.items():
+				
+				if namespaces == [ 'all namespaces' ]: new_ato[ service_key ] = True
+				
+			
+			ato = new_ato
+			
+		
+		return ato
+		
+	
 class DialogInputCustomFilterAction( Dialog ):
-    
-    def __init__( self, parent, modifier = wx.ACCEL_NORMAL, key = wx.WXK_F7, service_key = None, action = 'archive' ):
-        
-        def InitialiseControls():
-            
-            self._hidden_cancel = wx.Button( self, id = wx.ID_CANCEL, size = ( 0, 0 ) )
-            
-            self._shortcut_panel = ClientGUICommon.StaticBox( self, 'shortcut' )
-            
-            self._shortcut = ClientGUICommon.Shortcut( self._shortcut_panel, modifier, key )
-            
-            self._none_panel = ClientGUICommon.StaticBox( self, 'non-service actions' )
-            
-            self._none_actions = wx.Choice( self._none_panel, choices = [ 'manage_tags', 'manage_ratings', 'archive', 'inbox', 'delete', 'fullscreen_switch', 'frame_back', 'frame_next', 'previous', 'next', 'first', 'last', 'open_externally' ] )
-            
-            self._ok_none = wx.Button( self._none_panel, label = 'ok' )
-            self._ok_none.Bind( wx.EVT_BUTTON, self.EventOKNone )
-            self._ok_none.SetForegroundColour( ( 0, 128, 0 ) )
-            
-            self._tag_panel = ClientGUICommon.StaticBox( self, 'tag service actions' )
-            
-            self._tag_service_keys = wx.Choice( self._tag_panel )
-            self._tag_value = wx.TextCtrl( self._tag_panel, style = wx.TE_READONLY )
-            self._tag_input = ClientGUICommon.AutoCompleteDropdownTagsWrite( self._tag_panel, self.SetTag, HC.LOCAL_FILE_SERVICE_KEY, HC.COMBINED_TAG_SERVICE_KEY )
-            
-            self._ok_tag = wx.Button( self._tag_panel, label = 'ok' )
-            self._ok_tag.Bind( wx.EVT_BUTTON, self.EventOKTag )
-            self._ok_tag.SetForegroundColour( ( 0, 128, 0 ) )
-            
-            self._ratings_like_panel = ClientGUICommon.StaticBox( self, 'like/dislike ratings service actions' )
-            
-            self._ratings_like_service_keys = wx.Choice( self._ratings_like_panel )
-            self._ratings_like_service_keys.Bind( wx.EVT_CHOICE, self.EventRecalcActions )
-            self._ratings_like_like = wx.RadioButton( self._ratings_like_panel, style = wx.RB_GROUP, label = 'like' )
-            self._ratings_like_dislike = wx.RadioButton( self._ratings_like_panel, label = 'dislike' )
-            self._ratings_like_remove = wx.RadioButton( self._ratings_like_panel, label = 'remove rating' )
-            
-            self._ok_ratings_like = wx.Button( self._ratings_like_panel, label = 'ok' )
-            self._ok_ratings_like.Bind( wx.EVT_BUTTON, self.EventOKRatingsLike )
-            self._ok_ratings_like.SetForegroundColour( ( 0, 128, 0 ) )
-            
-            self._ratings_numerical_panel = ClientGUICommon.StaticBox( self, 'numerical ratings service actions' )
-            
-            self._ratings_numerical_service_keys = wx.Choice( self._ratings_numerical_panel )
-            self._ratings_numerical_service_keys.Bind( wx.EVT_CHOICE, self.EventRecalcActions )
-            self._ratings_numerical_slider = wx.Slider( self._ratings_numerical_panel, style = wx.SL_AUTOTICKS | wx.SL_LABELS )
-            self._ratings_numerical_remove = wx.CheckBox( self._ratings_numerical_panel, label = 'remove rating' )
-            
-            self._ok_ratings_numerical = wx.Button( self._ratings_numerical_panel, label = 'ok' )
-            self._ok_ratings_numerical.Bind( wx.EVT_BUTTON, self.EventOKRatingsNumerical )
-            self._ok_ratings_numerical.SetForegroundColour( ( 0, 128, 0 ) )
-            
-            services = HC.app.GetManager( 'services' ).GetServices( ( HC.LOCAL_TAG, HC.TAG_REPOSITORY, HC.LOCAL_RATING_LIKE, HC.LOCAL_RATING_NUMERICAL ) )
-            
-            for service in services:
-                
-                service_type = service.GetServiceType()
-                
-                if service_type in ( HC.LOCAL_TAG, HC.TAG_REPOSITORY ): choice = self._tag_service_keys
-                elif service_type == HC.LOCAL_RATING_LIKE: choice = self._ratings_like_service_keys
-                elif service_type == HC.LOCAL_RATING_NUMERICAL: choice = self._ratings_numerical_service_keys
-                
-                choice.Append( service.GetName(), service.GetServiceKey() )
-                
-            
-            self._SetActions()
-            
-            if self._service_key is None:
-                
-                self._none_actions.SetStringSelection( self._action )
-                
-            else:
-                
-                self._service = HC.app.GetManager( 'services' ).GetService( service_key )
-                
-                service_name = self._service.GetName()
-                service_type = self._service.GetServiceType()
-                
-                if service_type in ( HC.LOCAL_TAG, HC.TAG_REPOSITORY ):
-                    
-                    self._tag_service_keys.SetStringSelection( service_name )
-                    
-                    self._tag_value.SetValue( self._action )
-                    
-                elif service_type == HC.LOCAL_RATING_LIKE:
-                    
-                    self._ratings_like_service_keys.SetStringSelection( service_name )
-                    
-                    self._SetActions()
-                    
-                    if self._action is None: self._ratings_like_remove.SetValue( True )
-                    elif self._action == True: self._ratings_like_like.SetValue( True )
-                    elif self._action == False: self._ratings_like_dislike.SetValue( True )
-                    
-                elif service_type == HC.LOCAL_RATING_NUMERICAL:
-                    
-                    self._ratings_numerical_service_keys.SetStringSelection( service_name )
-                    
-                    self._SetActions()
-                    
-                    if self._action is None: self._ratings_numerical_remove.SetValue( True )
-                    else:
-                        
-                        ( lower, upper ) = self._current_ratings_numerical_service.GetLowerUpper()
-                        
-                        slider_value = int( self._action * ( upper - lower ) ) + lower
-                        
-                        self._ratings_numerical_slider.SetValue( slider_value )
-                        
-                    
-                
-            
-        
-        def PopulateControls():
-            
-            pass
-            
-        
-        def ArrangeControls():
-            
-            self._shortcut_panel.AddF( self._shortcut, FLAGS_EXPAND_PERPENDICULAR )
-            
-            none_hbox = wx.BoxSizer( wx.HORIZONTAL )
-            
-            none_hbox.AddF( self._none_actions, FLAGS_EXPAND_DEPTH_ONLY )
-            none_hbox.AddF( self._ok_none, FLAGS_MIXED )
-            
-            self._none_panel.AddF( none_hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
-            
-            tag_sub_vbox = wx.BoxSizer( wx.VERTICAL )
-            
-            tag_sub_vbox.AddF( self._tag_value, FLAGS_EXPAND_BOTH_WAYS )
-            tag_sub_vbox.AddF( self._tag_input, FLAGS_EXPAND_BOTH_WAYS )
-            
-            tag_hbox = wx.BoxSizer( wx.HORIZONTAL )
-            
-            tag_hbox.AddF( self._tag_service_keys, FLAGS_EXPAND_DEPTH_ONLY )
-            tag_hbox.AddF( tag_sub_vbox, FLAGS_EXPAND_SIZER_BOTH_WAYS )
-            tag_hbox.AddF( self._ok_tag, FLAGS_MIXED )
-            
-            self._tag_panel.AddF( tag_hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
-            
-            ratings_like_hbox = wx.BoxSizer( wx.HORIZONTAL )
-            
-            ratings_like_hbox.AddF( self._ratings_like_service_keys, FLAGS_EXPAND_DEPTH_ONLY )
-            ratings_like_hbox.AddF( self._ratings_like_like, FLAGS_MIXED )
-            ratings_like_hbox.AddF( self._ratings_like_dislike, FLAGS_MIXED )
-            ratings_like_hbox.AddF( self._ratings_like_remove, FLAGS_MIXED )
-            ratings_like_hbox.AddF( self._ok_ratings_like, FLAGS_MIXED )
-            
-            self._ratings_like_panel.AddF( ratings_like_hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
-            
-            ratings_numerical_hbox = wx.BoxSizer( wx.HORIZONTAL )
-            
-            ratings_numerical_hbox.AddF( self._ratings_numerical_service_keys, FLAGS_EXPAND_DEPTH_ONLY )
-            ratings_numerical_hbox.AddF( self._ratings_numerical_slider, FLAGS_MIXED )
-            ratings_numerical_hbox.AddF( self._ratings_numerical_remove, FLAGS_MIXED )
-            ratings_numerical_hbox.AddF( self._ok_ratings_numerical, FLAGS_MIXED )
-            
-            self._ratings_numerical_panel.AddF( ratings_numerical_hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
-            
-            vbox = wx.BoxSizer( wx.VERTICAL )
-            
-            vbox.AddF( self._none_panel, FLAGS_EXPAND_PERPENDICULAR )
-            vbox.AddF( self._tag_panel, FLAGS_EXPAND_PERPENDICULAR )
-            vbox.AddF( self._ratings_like_panel, FLAGS_EXPAND_PERPENDICULAR )
-            vbox.AddF( self._ratings_numerical_panel, FLAGS_EXPAND_PERPENDICULAR )
-            
-            hbox = wx.BoxSizer( wx.HORIZONTAL )
-            
-            hbox.AddF( self._shortcut_panel, FLAGS_MIXED )
-            hbox.AddF( wx.StaticText( self, label = u'\u2192' ), FLAGS_MIXED )
-            hbox.AddF( vbox, FLAGS_EXPAND_SIZER_BOTH_WAYS )
-            
-            self.SetSizer( hbox )
-            
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( 680, y ) )
-            
-        
-        Dialog.__init__( self, parent, 'input custom filter action' )
-        
-        self._service_key = service_key
-        self._action = action
-        
-        self._current_ratings_like_service = None
-        self._current_ratings_numerical_service = None
-        
-        InitialiseControls()
-        
-        PopulateControls()
-        
-        ArrangeControls()
-        
-        wx.CallAfter( self._ok_none.SetFocus )
-        
-    
-    def _SetActions( self ):
-        
-        if self._ratings_like_service_keys.GetCount() > 0:
-            
-            selection = self._ratings_like_service_keys.GetSelection()
-            
-            if selection != wx.NOT_FOUND:
-                
-                service_key = self._ratings_like_service_keys.GetClientData( selection )
-                
-                service = HC.app.GetManager( 'services' ).GetService( service_key )
-                
-                self._current_ratings_like_service = service
-                
-                ( like, dislike ) = service.GetLikeDislike()
-                
-                self._ratings_like_like.SetLabel( like )
-                self._ratings_like_dislike.SetLabel( dislike )
-                
-            else:
-                
-                self._ratings_like_like.SetLabel( 'like' )
-                self._ratings_like_dislike.SetLabel( 'dislike' )
-                
-            
-        
-        if self._ratings_numerical_service_keys.GetCount() > 0:
-            
-            selection = self._ratings_numerical_service_keys.GetSelection()
-            
-            if selection != wx.NOT_FOUND:
-                
-                service_key = self._ratings_numerical_service_keys.GetClientData( selection )
-                
-                service = HC.app.GetManager( 'services' ).GetService( service_key )
-                
-                self._current_ratings_numerical_service = service
-                
-                ( lower, upper ) = service.GetLowerUpper()
-                
-                self._ratings_numerical_slider.SetRange( lower, upper )
-                
-            else: self._ratings_numerical_slider.SetRange( 0, 5 )
-            
-        
-    
-    def EventOKNone( self, event ):
-        
-        self._service_key = None
-        self._action = self._none_actions.GetStringSelection()
-        self._pretty_action = self._action
-        
-        self.EndModal( wx.ID_OK )
-        
-    
-    def EventOKRatingsLike( self, event ):
-        
-        selection = self._ratings_like_service_keys.GetSelection()
-        
-        if selection != wx.NOT_FOUND:
-            
-            self._service_key = self._ratings_like_service_keys.GetClientData( selection )
-            
-            ( like, dislike ) = self._current_ratings_like_service.GetLikeDislike()
-            
-            if self._ratings_like_like.GetValue():
-                
-                self._action = 1.0
-                self._pretty_action = like
-                
-            elif self._ratings_like_dislike.GetValue():
-                
-                self._action = 0.0
-                self._pretty_action = dislike
-                
-            else:
-                
-                self._action = None
-                self._pretty_action = 'remove'
-                
-            
-            self.EndModal( wx.ID_OK )
-            
-        else: self.EndModal( wx.ID_CANCEL )
-        
-    
-    def EventOKRatingsNumerical( self, event ):
-        
-        selection = self._ratings_numerical_service_keys.GetSelection()
-        
-        if selection != wx.NOT_FOUND:
-            
-            self._service_key = self._ratings_numerical_service_keys.GetClientData( selection )
-            
-            if self._ratings_numerical_remove.GetValue():
-                
-                self._action = None
-                self._pretty_action = 'remove'
-                
-            else:
-                
-                self._pretty_action = HC.u( self._ratings_numerical_slider.GetValue() )
-                
-                ( lower, upper ) = self._current_ratings_numerical_service.GetLowerUpper()
-                
-                self._action = ( float( self._pretty_action ) - float( lower ) ) / ( upper - lower )
-                
-            
-            self.EndModal( wx.ID_OK )
-            
-        else: self.EndModal( wx.ID_CANCEL )
-        
-    
-    def EventOKTag( self, event ):
-        
-        selection = self._tag_service_keys.GetSelection()
-        
-        if selection != wx.NOT_FOUND:
-            
-            self._service_key = self._tag_service_keys.GetClientData( selection )
-            
-            self._action = self._tag_value.GetValue()
-            self._pretty_action = self._action
-            
-            self.EndModal( wx.ID_OK )
-            
-        else: self.EndModal( wx.ID_CANCEL )
-        
-    
-    def EventRecalcActions( self, event ):
-        
-        self._SetActions()
-        
-        event.Skip()
-        
-    
-    def GetInfo( self ):
-        
-        ( modifier, key ) = self._shortcut.GetValue()
-        
-        if self._service_key is None: pretty_service_key = ''
-        else: pretty_service_key = HC.app.GetManager( 'services' ).GetService( self._service_key ).GetName()
-        
-        # ignore this pretty_action
-        ( pretty_modifier, pretty_key, pretty_action ) = HC.ConvertShortcutToPrettyShortcut( modifier, key, self._action )
-        
-        return ( ( pretty_modifier, pretty_key, pretty_service_key, self._pretty_action ), ( modifier, key, self._service_key, self._action ) )
-        
-    
-    def SetTag( self, tag, parents = [] ): self._tag_value.SetValue( tag )
-    
+	
+	def __init__( self, parent, modifier = wx.ACCEL_NORMAL, key = wx.WXK_F7, service_key = None, action = 'archive' ):
+		
+		def InitialiseControls():
+			
+			self._hidden_cancel = wx.Button( self, id = wx.ID_CANCEL, size = ( 0, 0 ) )
+			
+			self._shortcut_panel = ClientGUICommon.StaticBox( self, 'shortcut' )
+			
+			self._shortcut = ClientGUICommon.Shortcut( self._shortcut_panel, modifier, key )
+			
+			self._none_panel = ClientGUICommon.StaticBox( self, 'non-service actions' )
+			
+			self._none_actions = wx.Choice( self._none_panel, choices = [ 'manage_tags', 'manage_ratings', 'archive', 'inbox', 'delete', 'fullscreen_switch', 'frame_back', 'frame_next', 'previous', 'next', 'first', 'last', 'open_externally' ] )
+			
+			self._ok_none = wx.Button( self._none_panel, label = 'ok' )
+			self._ok_none.Bind( wx.EVT_BUTTON, self.EventOKNone )
+			self._ok_none.SetForegroundColour( ( 0, 128, 0 ) )
+			
+			self._tag_panel = ClientGUICommon.StaticBox( self, 'tag service actions' )
+			
+			self._tag_service_keys = wx.Choice( self._tag_panel )
+			self._tag_value = wx.TextCtrl( self._tag_panel, style = wx.TE_READONLY )
+			self._tag_input = ClientGUICommon.AutoCompleteDropdownTagsWrite( self._tag_panel, self.SetTag, HC.LOCAL_FILE_SERVICE_KEY, HC.COMBINED_TAG_SERVICE_KEY )
+			
+			self._ok_tag = wx.Button( self._tag_panel, label = 'ok' )
+			self._ok_tag.Bind( wx.EVT_BUTTON, self.EventOKTag )
+			self._ok_tag.SetForegroundColour( ( 0, 128, 0 ) )
+			
+			self._ratings_like_panel = ClientGUICommon.StaticBox( self, 'like/dislike ratings service actions' )
+			
+			self._ratings_like_service_keys = wx.Choice( self._ratings_like_panel )
+			self._ratings_like_service_keys.Bind( wx.EVT_CHOICE, self.EventRecalcActions )
+			self._ratings_like_like = wx.RadioButton( self._ratings_like_panel, style = wx.RB_GROUP, label = 'like' )
+			self._ratings_like_dislike = wx.RadioButton( self._ratings_like_panel, label = 'dislike' )
+			self._ratings_like_remove = wx.RadioButton( self._ratings_like_panel, label = 'remove rating' )
+			
+			self._ok_ratings_like = wx.Button( self._ratings_like_panel, label = 'ok' )
+			self._ok_ratings_like.Bind( wx.EVT_BUTTON, self.EventOKRatingsLike )
+			self._ok_ratings_like.SetForegroundColour( ( 0, 128, 0 ) )
+			
+			self._ratings_numerical_panel = ClientGUICommon.StaticBox( self, 'numerical ratings service actions' )
+			
+			self._ratings_numerical_service_keys = wx.Choice( self._ratings_numerical_panel )
+			self._ratings_numerical_service_keys.Bind( wx.EVT_CHOICE, self.EventRecalcActions )
+			self._ratings_numerical_slider = wx.Slider( self._ratings_numerical_panel, style = wx.SL_AUTOTICKS | wx.SL_LABELS )
+			self._ratings_numerical_remove = wx.CheckBox( self._ratings_numerical_panel, label = 'remove rating' )
+			
+			self._ok_ratings_numerical = wx.Button( self._ratings_numerical_panel, label = 'ok' )
+			self._ok_ratings_numerical.Bind( wx.EVT_BUTTON, self.EventOKRatingsNumerical )
+			self._ok_ratings_numerical.SetForegroundColour( ( 0, 128, 0 ) )
+			
+			services = HC.app.GetManager( 'services' ).GetServices( ( HC.LOCAL_TAG, HC.TAG_REPOSITORY, HC.LOCAL_RATING_LIKE, HC.LOCAL_RATING_NUMERICAL ) )
+			
+			for service in services:
+				
+				service_type = service.GetServiceType()
+				
+				if service_type in ( HC.LOCAL_TAG, HC.TAG_REPOSITORY ): choice = self._tag_service_keys
+				elif service_type == HC.LOCAL_RATING_LIKE: choice = self._ratings_like_service_keys
+				elif service_type == HC.LOCAL_RATING_NUMERICAL: choice = self._ratings_numerical_service_keys
+				
+				choice.Append( service.GetName(), service.GetServiceKey() )
+				
+			
+			self._SetActions()
+			
+			if self._service_key is None:
+				
+				self._none_actions.SetStringSelection( self._action )
+				
+			else:
+				
+				self._service = HC.app.GetManager( 'services' ).GetService( service_key )
+				
+				service_name = self._service.GetName()
+				service_type = self._service.GetServiceType()
+				
+				if service_type in ( HC.LOCAL_TAG, HC.TAG_REPOSITORY ):
+					
+					self._tag_service_keys.SetStringSelection( service_name )
+					
+					self._tag_value.SetValue( self._action )
+					
+				elif service_type == HC.LOCAL_RATING_LIKE:
+					
+					self._ratings_like_service_keys.SetStringSelection( service_name )
+					
+					self._SetActions()
+					
+					if self._action is None: self._ratings_like_remove.SetValue( True )
+					elif self._action == True: self._ratings_like_like.SetValue( True )
+					elif self._action == False: self._ratings_like_dislike.SetValue( True )
+					
+				elif service_type == HC.LOCAL_RATING_NUMERICAL:
+					
+					self._ratings_numerical_service_keys.SetStringSelection( service_name )
+					
+					self._SetActions()
+					
+					if self._action is None: self._ratings_numerical_remove.SetValue( True )
+					else:
+						
+						( lower, upper ) = self._current_ratings_numerical_service.GetLowerUpper()
+						
+						slider_value = int( self._action * ( upper - lower ) ) + lower
+						
+						self._ratings_numerical_slider.SetValue( slider_value )
+						
+					
+				
+			
+		
+		def PopulateControls():
+			
+			pass
+			
+		
+		def ArrangeControls():
+			
+			self._shortcut_panel.AddF( self._shortcut, FLAGS_EXPAND_PERPENDICULAR )
+			
+			none_hbox = wx.BoxSizer( wx.HORIZONTAL )
+			
+			none_hbox.AddF( self._none_actions, FLAGS_EXPAND_DEPTH_ONLY )
+			none_hbox.AddF( self._ok_none, FLAGS_MIXED )
+			
+			self._none_panel.AddF( none_hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
+			
+			tag_sub_vbox = wx.BoxSizer( wx.VERTICAL )
+			
+			tag_sub_vbox.AddF( self._tag_value, FLAGS_EXPAND_BOTH_WAYS )
+			tag_sub_vbox.AddF( self._tag_input, FLAGS_EXPAND_BOTH_WAYS )
+			
+			tag_hbox = wx.BoxSizer( wx.HORIZONTAL )
+			
+			tag_hbox.AddF( self._tag_service_keys, FLAGS_EXPAND_DEPTH_ONLY )
+			tag_hbox.AddF( tag_sub_vbox, FLAGS_EXPAND_SIZER_BOTH_WAYS )
+			tag_hbox.AddF( self._ok_tag, FLAGS_MIXED )
+			
+			self._tag_panel.AddF( tag_hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
+			
+			ratings_like_hbox = wx.BoxSizer( wx.HORIZONTAL )
+			
+			ratings_like_hbox.AddF( self._ratings_like_service_keys, FLAGS_EXPAND_DEPTH_ONLY )
+			ratings_like_hbox.AddF( self._ratings_like_like, FLAGS_MIXED )
+			ratings_like_hbox.AddF( self._ratings_like_dislike, FLAGS_MIXED )
+			ratings_like_hbox.AddF( self._ratings_like_remove, FLAGS_MIXED )
+			ratings_like_hbox.AddF( self._ok_ratings_like, FLAGS_MIXED )
+			
+			self._ratings_like_panel.AddF( ratings_like_hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
+			
+			ratings_numerical_hbox = wx.BoxSizer( wx.HORIZONTAL )
+			
+			ratings_numerical_hbox.AddF( self._ratings_numerical_service_keys, FLAGS_EXPAND_DEPTH_ONLY )
+			ratings_numerical_hbox.AddF( self._ratings_numerical_slider, FLAGS_MIXED )
+			ratings_numerical_hbox.AddF( self._ratings_numerical_remove, FLAGS_MIXED )
+			ratings_numerical_hbox.AddF( self._ok_ratings_numerical, FLAGS_MIXED )
+			
+			self._ratings_numerical_panel.AddF( ratings_numerical_hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
+			
+			vbox = wx.BoxSizer( wx.VERTICAL )
+			
+			vbox.AddF( self._none_panel, FLAGS_EXPAND_PERPENDICULAR )
+			vbox.AddF( self._tag_panel, FLAGS_EXPAND_PERPENDICULAR )
+			vbox.AddF( self._ratings_like_panel, FLAGS_EXPAND_PERPENDICULAR )
+			vbox.AddF( self._ratings_numerical_panel, FLAGS_EXPAND_PERPENDICULAR )
+			
+			hbox = wx.BoxSizer( wx.HORIZONTAL )
+			
+			hbox.AddF( self._shortcut_panel, FLAGS_MIXED )
+			hbox.AddF( wx.StaticText( self, label = u'\u2192' ), FLAGS_MIXED )
+			hbox.AddF( vbox, FLAGS_EXPAND_SIZER_BOTH_WAYS )
+			
+			self.SetSizer( hbox )
+			
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( 680, y ) )
+			
+		
+		Dialog.__init__( self, parent, 'input custom filter action' )
+		
+		self._service_key = service_key
+		self._action = action
+		
+		self._current_ratings_like_service = None
+		self._current_ratings_numerical_service = None
+		
+		InitialiseControls()
+		
+		PopulateControls()
+		
+		ArrangeControls()
+		
+		wx.CallAfter( self._ok_none.SetFocus )
+		
+	
+	def _SetActions( self ):
+		
+		if self._ratings_like_service_keys.GetCount() > 0:
+			
+			selection = self._ratings_like_service_keys.GetSelection()
+			
+			if selection != wx.NOT_FOUND:
+				
+				service_key = self._ratings_like_service_keys.GetClientData( selection )
+				
+				service = HC.app.GetManager( 'services' ).GetService( service_key )
+				
+				self._current_ratings_like_service = service
+				
+				( like, dislike ) = service.GetLikeDislike()
+				
+				self._ratings_like_like.SetLabel( like )
+				self._ratings_like_dislike.SetLabel( dislike )
+				
+			else:
+				
+				self._ratings_like_like.SetLabel( 'like' )
+				self._ratings_like_dislike.SetLabel( 'dislike' )
+				
+			
+		
+		if self._ratings_numerical_service_keys.GetCount() > 0:
+			
+			selection = self._ratings_numerical_service_keys.GetSelection()
+			
+			if selection != wx.NOT_FOUND:
+				
+				service_key = self._ratings_numerical_service_keys.GetClientData( selection )
+				
+				service = HC.app.GetManager( 'services' ).GetService( service_key )
+				
+				self._current_ratings_numerical_service = service
+				
+				( lower, upper ) = service.GetLowerUpper()
+				
+				self._ratings_numerical_slider.SetRange( lower, upper )
+				
+			else: self._ratings_numerical_slider.SetRange( 0, 5 )
+			
+		
+	
+	def EventOKNone( self, event ):
+		
+		self._service_key = None
+		self._action = self._none_actions.GetStringSelection()
+		self._pretty_action = self._action
+		
+		self.EndModal( wx.ID_OK )
+		
+	
+	def EventOKRatingsLike( self, event ):
+		
+		selection = self._ratings_like_service_keys.GetSelection()
+		
+		if selection != wx.NOT_FOUND:
+			
+			self._service_key = self._ratings_like_service_keys.GetClientData( selection )
+			
+			( like, dislike ) = self._current_ratings_like_service.GetLikeDislike()
+			
+			if self._ratings_like_like.GetValue():
+				
+				self._action = 1.0
+				self._pretty_action = like
+				
+			elif self._ratings_like_dislike.GetValue():
+				
+				self._action = 0.0
+				self._pretty_action = dislike
+				
+			else:
+				
+				self._action = None
+				self._pretty_action = 'remove'
+				
+			
+			self.EndModal( wx.ID_OK )
+			
+		else: self.EndModal( wx.ID_CANCEL )
+		
+	
+	def EventOKRatingsNumerical( self, event ):
+		
+		selection = self._ratings_numerical_service_keys.GetSelection()
+		
+		if selection != wx.NOT_FOUND:
+			
+			self._service_key = self._ratings_numerical_service_keys.GetClientData( selection )
+			
+			if self._ratings_numerical_remove.GetValue():
+				
+				self._action = None
+				self._pretty_action = 'remove'
+				
+			else:
+				
+				self._pretty_action = HC.u( self._ratings_numerical_slider.GetValue() )
+				
+				( lower, upper ) = self._current_ratings_numerical_service.GetLowerUpper()
+				
+				self._action = ( float( self._pretty_action ) - float( lower ) ) / ( upper - lower )
+				
+			
+			self.EndModal( wx.ID_OK )
+			
+		else: self.EndModal( wx.ID_CANCEL )
+		
+	
+	def EventOKTag( self, event ):
+		
+		selection = self._tag_service_keys.GetSelection()
+		
+		if selection != wx.NOT_FOUND:
+			
+			self._service_key = self._tag_service_keys.GetClientData( selection )
+			
+			self._action = self._tag_value.GetValue()
+			self._pretty_action = self._action
+			
+			self.EndModal( wx.ID_OK )
+			
+		else: self.EndModal( wx.ID_CANCEL )
+		
+	
+	def EventRecalcActions( self, event ):
+		
+		self._SetActions()
+		
+		event.Skip()
+		
+	
+	def GetInfo( self ):
+		
+		( modifier, key ) = self._shortcut.GetValue()
+		
+		if self._service_key is None: pretty_service_key = ''
+		else: pretty_service_key = HC.app.GetManager( 'services' ).GetService( self._service_key ).GetName()
+		
+		# ignore this pretty_action
+		( pretty_modifier, pretty_key, pretty_action ) = HC.ConvertShortcutToPrettyShortcut( modifier, key, self._action )
+		
+		return ( ( pretty_modifier, pretty_key, pretty_service_key, self._pretty_action ), ( modifier, key, self._service_key, self._action ) )
+		
+	
+	def SetTag( self, tag, parents = [] ): self._tag_value.SetValue( tag )
+	
 class DialogInputFileSystemPredicate( Dialog ):
-    
-    def __init__( self, parent, predicate_type ):
-        
-        def Age():
-            
-            def InitialiseControls():
-                
-                self._sign = wx.Choice( self, choices=[ '<', u'\u2248', '>' ] )
-                
-                self._years = wx.SpinCtrl( self, max = 30 )
-                self._months = wx.SpinCtrl( self, max = 60 )
-                self._days = wx.SpinCtrl( self, max = 90 )
-                self._hours = wx.SpinCtrl( self, max = 24 )
-                
-                self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
-                self._ok.SetDefault()
-                self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
-                self._ok.SetForegroundColour( ( 0, 128, 0 ) )
-                
-            
-            def PopulateControls():
-                
-                ( sign, years, months, days ) = system_predicates[ 'age' ]
-                
-                self._sign.SetSelection( sign )
-                
-                self._years.SetValue( years )
-                self._months.SetValue( months )
-                self._days.SetValue( days )
-                self._hours.SetValue( 0 )
-                
-            
-            def ArrangeControls():
-                
-                hbox = wx.BoxSizer( wx.HORIZONTAL )
-                
-                hbox.AddF( wx.StaticText( self, label = 'system:age' ), FLAGS_MIXED )
-                hbox.AddF( self._sign, FLAGS_MIXED )
-                hbox.AddF( self._years, FLAGS_MIXED )
-                hbox.AddF( wx.StaticText( self, label = 'years' ), FLAGS_MIXED )
-                hbox.AddF( self._months, FLAGS_MIXED )
-                hbox.AddF( wx.StaticText( self, label = 'months' ), FLAGS_MIXED )
-                hbox.AddF( self._days, FLAGS_MIXED )
-                hbox.AddF( wx.StaticText( self, label = 'days' ), FLAGS_MIXED )
-                hbox.AddF( self._hours, FLAGS_MIXED )
-                hbox.AddF( wx.StaticText( self, label = 'hours' ), FLAGS_MIXED )
-                hbox.AddF( self._ok, FLAGS_MIXED )
-                
-                self.SetSizer( hbox )
-                
-            
-            Dialog.__init__( self, parent, 'enter age predicate' )
-            
-            InitialiseControls()
-            
-            PopulateControls()
-            
-            ArrangeControls()
-        
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-            wx.CallAfter( self._days.SetFocus )
-            
-        
-        def Duration():
-            
-            def InitialiseControls():
-                
-                self._sign = wx.Choice( self, choices=[ '<', u'\u2248', '=', '>' ] )
-                
-                self._duration_s = wx.SpinCtrl( self, max = 3599 )
-                self._duration_ms = wx.SpinCtrl( self, max = 999 )
-                
-                self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
-                self._ok.SetDefault()
-                self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
-                self._ok.SetForegroundColour( ( 0, 128, 0 ) )
-                
-            
-            def PopulateControls():
-                
-                ( sign, s, ms ) = system_predicates[ 'duration' ]
-                
-                self._sign.SetSelection( sign )
-                
-                self._duration_s.SetValue( s )
-                self._duration_ms.SetValue( ms )
-                
-            
-            def ArrangeControls():
-                
-                hbox = wx.BoxSizer( wx.HORIZONTAL )
-                
-                hbox.AddF( wx.StaticText( self, label = 'system:duration' ), FLAGS_MIXED )
-                hbox.AddF( self._sign, FLAGS_MIXED )
-                hbox.AddF( self._duration_s, FLAGS_MIXED )
-                hbox.AddF( wx.StaticText( self, label = 's' ), FLAGS_MIXED )
-                hbox.AddF( self._duration_ms, FLAGS_MIXED )
-                hbox.AddF( wx.StaticText( self, label = 'ms' ), FLAGS_MIXED )
-                hbox.AddF( self._ok, FLAGS_MIXED )
-                
-                self.SetSizer( hbox )
-                
-            
-            Dialog.__init__( self, parent, 'enter duration predicate' )
-            
-            InitialiseControls()
-            
-            PopulateControls()
-            
-            ArrangeControls()
-        
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-            wx.CallAfter( self._duration_s.SetFocus )
-            
-        
-        def FileService():
-            
-            def InitialiseControls():
-                
-                self._sign = wx.Choice( self )
-                self._sign.Append( 'is', True )
-                self._sign.Append( 'is not', False )
-                
-                self._current_pending = wx.Choice( self )
-                self._current_pending.Append( 'currently in', HC.CURRENT )
-                self._current_pending.Append( 'pending to', HC.PENDING )
-                
-                self._file_service_key = wx.Choice( self )
-                
-                self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
-                self._ok.SetDefault()
-                self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
-                self._ok.SetForegroundColour( ( 0, 128, 0 ) )
-                
-            
-            def PopulateControls():
-                
-                self._sign.SetSelection( 0 )
-                self._current_pending.SetSelection( 0 )
-                
-                services = HC.app.GetManager( 'services' ).GetServices( ( HC.FILE_REPOSITORY, HC.LOCAL_FILE ) )
-                
-                for service in services: self._file_service_key.Append( service.GetName(), service.GetServiceKey() )
-                self._file_service_key.SetSelection( 0 )
-                
-            
-            def ArrangeControls():
-                
-                hbox = wx.BoxSizer( wx.HORIZONTAL )
-                
-                hbox.AddF( wx.StaticText( self, label = 'system:file service:' ), FLAGS_MIXED )
-                hbox.AddF( self._sign, FLAGS_MIXED )
-                hbox.AddF( self._current_pending, FLAGS_MIXED )
-                hbox.AddF( self._file_service_key, FLAGS_MIXED )
-                hbox.AddF( self._ok, FLAGS_MIXED )
-                
-                self.SetSizer( hbox )
-                
-            
-            Dialog.__init__( self, parent, 'enter file service predicate' )
-            
-            InitialiseControls()
-            
-            PopulateControls()
-            
-            ArrangeControls()
-        
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-            wx.CallAfter( self._sign.SetFocus )
-            
-        
-        def Hash():
-            
-            def InitialiseControls():
-                
-                self._hash = wx.TextCtrl( self )
-                
-                self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
-                self._ok.SetDefault()
-                self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
-                self._ok.SetForegroundColour( ( 0, 128, 0 ) )
-                
-            
-            def PopulateControls():
-                
-                pass
-                
-            
-            def ArrangeControls():
-                
-                hbox = wx.BoxSizer( wx.HORIZONTAL )
-                
-                hbox.AddF( wx.StaticText( self, label = 'system:hash=' ), FLAGS_MIXED )
-                hbox.AddF( self._hash, FLAGS_MIXED )
-                hbox.AddF( self._ok, FLAGS_MIXED )
-                
-                self.SetSizer( hbox )
-                
-            
-            Dialog.__init__( self, parent, 'enter hash predicate' )
-            
-            InitialiseControls()
-            
-            PopulateControls()
-            
-            ArrangeControls()
-        
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-            wx.CallAfter( self._hash.SetFocus )
-            
-        
-        def Height():
-            
-            def InitialiseControls():
-                
-                self._sign = wx.Choice( self, choices=[ '<', u'\u2248', '=', '>' ] )
-                
-                self._height = wx.SpinCtrl( self, max = 200000 )
-                
-                self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
-                self._ok.SetDefault()
-                self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
-                self._ok.SetForegroundColour( ( 0, 128, 0 ) )
-                
-            
-            def PopulateControls():
-                
-                ( sign, height ) = system_predicates[ 'height' ]
-                
-                self._sign.SetSelection( sign )
-                
-                self._height.SetValue( height )
-                
-            
-            def ArrangeControls():
-                
-                hbox = wx.BoxSizer( wx.HORIZONTAL )
-                
-                hbox.AddF( wx.StaticText( self, label = 'system:height' ), FLAGS_MIXED )
-                hbox.AddF( self._sign, FLAGS_MIXED )
-                hbox.AddF( self._height, FLAGS_MIXED )
-                hbox.AddF( self._ok, FLAGS_MIXED )
-                
-                self.SetSizer( hbox )
-                
-            
-            Dialog.__init__( self, parent, 'enter height predicate' )
-            
-            InitialiseControls()
-            
-            PopulateControls()
-            
-            ArrangeControls()
-        
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-            wx.CallAfter( self._height.SetFocus )
-            
-        
-        def Limit():
-            
-            def InitialiseControls():
-                
-                self._limit = wx.SpinCtrl( self, max = 1000000 )
-                
-                self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
-                self._ok.SetDefault()
-                self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
-                self._ok.SetForegroundColour( ( 0, 128, 0 ) )
-                
-            
-            def PopulateControls():
-                
-                limit = system_predicates[ 'limit' ]
-                
-                self._limit.SetValue( limit )
-                
-            
-            def ArrangeControls():
-                
-                hbox = wx.BoxSizer( wx.HORIZONTAL )
-                
-                hbox.AddF( wx.StaticText( self, label = 'system:limit=' ), FLAGS_MIXED )
-                hbox.AddF( self._limit, FLAGS_MIXED )
-                hbox.AddF( self._ok, FLAGS_MIXED )
-                
-                self.SetSizer( hbox )
-                
-            
-            Dialog.__init__( self, parent, 'enter limit predicate' )
-            
-            InitialiseControls()
-            
-            PopulateControls()
-            
-            ArrangeControls()
-        
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-            wx.CallAfter( self._limit.SetFocus )
-            
-        
-        def Mime():
-            
-            def InitialiseControls():
-                
-                self._mime_media = wx.Choice( self, choices = [ 'image', 'application', 'audio', 'video' ] )
-                self._mime_media.Bind( wx.EVT_CHOICE, self.EventMime )
-                
-                self._mime_type = wx.Choice( self, choices = [], size = ( 120, -1 ) )
-                
-                self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
-                self._ok.SetDefault()
-                self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
-                self._ok.SetForegroundColour( ( 0, 128, 0 ) )
-                
-            
-            def PopulateControls():
-                
-                ( media, media_type ) = system_predicates[ 'mime' ]
-                
-                self._mime_media.SetSelection( media )
-                
-                self.EventMime( None )
-                
-                self._mime_type.SetSelection( media_type )
-                
-            
-            def ArrangeControls():
-                
-                hbox = wx.BoxSizer( wx.HORIZONTAL )
-                
-                hbox.AddF( wx.StaticText( self, label = 'system:mime' ), FLAGS_MIXED )
-                hbox.AddF( self._mime_media, FLAGS_MIXED )
-                hbox.AddF( wx.StaticText( self, label = '/' ), FLAGS_MIXED )
-                hbox.AddF( self._mime_type, FLAGS_MIXED )
-                hbox.AddF( self._ok, FLAGS_MIXED )
-                
-                self.SetSizer( hbox )
-                
-            
-            Dialog.__init__( self, parent, 'enter mime predicate' )
-            
-            InitialiseControls()
-            
-            PopulateControls()
-            
-            ArrangeControls()
-        
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-            wx.CallAfter( self._mime_media.SetFocus )
-            
-        
-        def NumTags():
-            
-            def InitialiseControls():
-                
-                self._sign = wx.Choice( self, choices=[ '<', u'\u2248', '=', '>' ] )
-                
-                self._num_tags = wx.SpinCtrl( self, max = 2000 )
-                
-                self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
-                self._ok.SetDefault()
-                self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
-                self._ok.SetForegroundColour( ( 0, 128, 0 ) )
-                
-            
-            def PopulateControls():
-                
-                ( sign, num_tags ) = system_predicates[ 'num_tags' ]
-                
-                self._sign.SetSelection( sign )
-                
-                self._num_tags.SetValue( num_tags )
-                
-            
-            def ArrangeControls():
-                
-                hbox = wx.BoxSizer( wx.HORIZONTAL )
-                
-                hbox.AddF( wx.StaticText( self, label = 'system:num_tags' ), FLAGS_MIXED )
-                hbox.AddF( self._sign, FLAGS_MIXED )
-                hbox.AddF( self._num_tags, FLAGS_MIXED )
-                hbox.AddF( self._ok, FLAGS_MIXED )
-                
-                self.SetSizer( hbox )
-                
-            
-            Dialog.__init__( self, parent, 'enter number of tags predicate' )
-            
-            InitialiseControls()
-            
-            PopulateControls()
-            
-            ArrangeControls()
-        
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-            wx.CallAfter( self._num_tags.SetFocus )
-            
-        
-        def NumWords():
-            
-            def InitialiseControls():
-                
-                self._sign = wx.Choice( self, choices=[ '<', u'\u2248', '=', '>' ] )
-                
-                self._num_words = wx.SpinCtrl( self, max = 1000000 )
-                
-                self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
-                self._ok.SetDefault()
-                self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
-                self._ok.SetForegroundColour( ( 0, 128, 0 ) )
-                
-            
-            def PopulateControls():
-                
-                ( sign, num_words ) = system_predicates[ 'num_words' ]
-                
-                self._sign.SetSelection( sign )
-                
-                self._num_words.SetValue( num_words )
-                
-            
-            def ArrangeControls():
-                
-                hbox = wx.BoxSizer( wx.HORIZONTAL )
-                
-                hbox.AddF( wx.StaticText( self, label = 'system:num_words' ), FLAGS_MIXED )
-                hbox.AddF( self._sign, FLAGS_MIXED )
-                hbox.AddF( self._num_words, FLAGS_MIXED )
-                hbox.AddF( self._ok, FLAGS_MIXED )
-                
-                self.SetSizer( hbox )
-                
-            
-            Dialog.__init__( self, parent, 'enter number of words predicate' )
-            
-            InitialiseControls()
-            
-            PopulateControls()
-            
-            ArrangeControls()
-        
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-            wx.CallAfter( self._num_words.SetFocus )
-            
-        
-        def Rating():
-            
-            def InitialiseControls():
-                
-                self._service_numerical = wx.Choice( self )
-                self._service_numerical.Bind( wx.EVT_CHOICE, self.EventRatingsService )
-                
-                self._sign_numerical = wx.Choice( self, choices=[ '>', '<', '=', u'\u2248', '=rated', '=not rated', '=uncertain' ] )
-                
-                self._value_numerical = wx.SpinCtrl( self, min = 0, max = 50000 ) # set bounds based on current service
-                
-                self._first_ok = wx.Button( self, label = 'Ok', id = HC.LOCAL_RATING_NUMERICAL )
-                self._first_ok.Bind( wx.EVT_BUTTON, self.EventOK )
-                self._first_ok.SetForegroundColour( ( 0, 128, 0 ) )
-                
-                self._service_like = wx.Choice( self )
-                self._service_like.Bind( wx.EVT_CHOICE, self.EventRatingsService )
-                
-                self._value_like = wx.Choice( self, choices=[ 'like', 'dislike', 'rated', 'not rated' ] ) # set words based on current service
-                
-                self._second_ok = wx.Button( self, label = 'Ok', id = HC.LOCAL_RATING_LIKE )
-                self._second_ok.Bind( wx.EVT_BUTTON, self.EventOK )
-                self._second_ok.SetForegroundColour( ( 0, 128, 0 ) )
-                
-            
-            def PopulateControls():
-                
-                self._local_numericals = HC.app.GetManager( 'services' ).GetServices( ( HC.LOCAL_RATING_NUMERICAL, ) )
-                self._local_likes = HC.app.GetManager( 'services' ).GetServices( ( HC.LOCAL_RATING_LIKE, ) )
-                
-                for service in self._local_numericals: self._service_numerical.Append( service.GetName(), service.GetServiceKey() )
-                
-                ( sign, value ) = system_predicates[ 'local_rating_numerical' ]
-                
-                self._sign_numerical.SetSelection( sign )
-                
-                self._value_numerical.SetValue( value )
-                
-                for service in self._local_likes: self._service_like.Append( service.GetName(), service.GetServiceKey() )
-                
-                value = system_predicates[ 'local_rating_like' ]
-                
-                self._value_like.SetSelection( value )
-                
-                if len( self._local_numericals ) > 0: self._service_numerical.SetSelection( 0 )
-                if len( self._local_likes ) > 0: self._service_like.SetSelection( 0 )
-                
-                self.EventRatingsService( None )
-                
-            
-            def ArrangeControls():
-                
-                vbox = wx.BoxSizer( wx.VERTICAL )
-                
-                hbox = wx.BoxSizer( wx.HORIZONTAL )
-                
-                hbox.AddF( wx.StaticText( self, label = 'system:rating:' ), FLAGS_MIXED )
-                hbox.AddF( self._service_numerical, FLAGS_MIXED )
-                hbox.AddF( self._sign_numerical, FLAGS_MIXED )
-                hbox.AddF( self._value_numerical, FLAGS_MIXED )
-                hbox.AddF( self._first_ok, FLAGS_MIXED )
-                
-                vbox.AddF( hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
-                
-                hbox = wx.BoxSizer( wx.HORIZONTAL )
-                
-                hbox.AddF( wx.StaticText( self, label = 'system:rating:' ), FLAGS_MIXED )
-                hbox.AddF( self._service_like, FLAGS_MIXED )
-                hbox.AddF( wx.StaticText( self, label = '=' ), FLAGS_MIXED )
-                hbox.AddF( self._value_like, FLAGS_MIXED )
-                hbox.AddF( self._second_ok, FLAGS_MIXED )
-                
-                vbox.AddF( hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
-                
-                self.SetSizer( vbox )
-                
-            
-            Dialog.__init__( self, parent, 'enter rating predicate' )
-            
-            InitialiseControls()
-            
-            PopulateControls()
-            
-            ArrangeControls()
-        
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-            wx.CallAfter( self._value_numerical.SetFocus )
-            
-        
-        def Ratio():
-            
-            def InitialiseControls():
-                
-                self._sign = wx.Choice( self, choices = [ '=', u'\u2248' ] )
-                
-                self._width = wx.SpinCtrl( self, max = 50000 )
-                
-                self._height = wx.SpinCtrl( self, max = 50000 )
-                
-                self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
-                self._ok.SetDefault()
-                self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
-                self._ok.SetForegroundColour( ( 0, 128, 0 ) )
-                
-            
-            def PopulateControls():
-                
-                ( sign, width, height ) = system_predicates[ 'ratio' ]
-                
-                self._sign.SetSelection( sign )
-                
-                self._width.SetValue( width )
-                
-                self._height.SetValue( height )
-                
-            
-            def ArrangeControls():
-                
-                hbox = wx.BoxSizer( wx.HORIZONTAL )
-                
-                hbox.AddF( wx.StaticText( self, label = 'system:ratio' ), FLAGS_MIXED )
-                hbox.AddF( self._sign, FLAGS_MIXED )
-                hbox.AddF( self._width, FLAGS_MIXED )
-                hbox.AddF( wx.StaticText( self, label = ':' ), FLAGS_MIXED )
-                hbox.AddF( self._height, FLAGS_MIXED )
-                hbox.AddF( self._ok, FLAGS_MIXED )
-                
-                self.SetSizer( hbox )
-                
-            
-            Dialog.__init__( self, parent, 'enter ratio predicate' )
-            
-            InitialiseControls()
-            
-            PopulateControls()
-            
-            ArrangeControls()
-        
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-            wx.CallAfter( self._sign.SetFocus )
-            
-        
-        def Size():
-            
-            def InitialiseControls():
-                
-                self._sign = wx.Choice( self, choices = [ '<', u'\u2248', '=', '>' ] )
-                
-                self._size = wx.SpinCtrl( self, max = 1048576 )
-                
-                self._unit = wx.Choice( self, choices = [ 'B', 'KB', 'MB', 'GB' ] )
-                
-                self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
-                self._ok.SetDefault()
-                self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
-                self._ok.SetForegroundColour( ( 0, 128, 0 ) )
-                
-            
-            def PopulateControls():
-                
-                ( sign, size, unit ) = system_predicates[ 'size' ]
-                
-                self._sign.SetSelection( sign )
-                
-                self._size.SetValue( size )
-                
-                self._unit.SetSelection( unit )
-                
-            
-            def ArrangeControls():
-                
-                hbox = wx.BoxSizer( wx.HORIZONTAL )
-                
-                hbox.AddF( wx.StaticText( self, label = 'system:size' ), FLAGS_MIXED )
-                hbox.AddF( self._sign, FLAGS_MIXED )
-                hbox.AddF( self._size, FLAGS_MIXED )
-                hbox.AddF( self._unit, FLAGS_MIXED )
-                hbox.AddF( self._ok, FLAGS_MIXED )
-                
-                self.SetSizer( hbox )
-                
-            
-            Dialog.__init__( self, parent, 'enter size predicate' )
-            
-            InitialiseControls()
-            
-            PopulateControls()
-            
-            ArrangeControls()
-        
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-            wx.CallAfter( self._size.SetFocus )
-            
-        
-        def Width():
-            
-            def InitialiseControls():
-                
-                self._sign = wx.Choice( self, choices = [ '<', u'\u2248', '=', '>' ] )
-                
-                self._width = wx.SpinCtrl( self, max = 200000 )
-                
-                self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
-                self._ok.SetDefault()
-                self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
-                self._ok.SetForegroundColour( ( 0, 128, 0 ) )
-                
-            
-            def PopulateControls():
-                
-                ( sign, width ) = system_predicates[ 'width' ]
-                
-                self._sign.SetSelection( sign )
-                
-                self._width.SetValue( width )
-                
-            
-            def ArrangeControls():
-                
-                hbox = wx.BoxSizer( wx.HORIZONTAL )
-                
-                hbox.AddF( wx.StaticText( self, label = 'system:width' ), FLAGS_MIXED )
-                hbox.AddF( self._sign, FLAGS_MIXED )
-                hbox.AddF( self._width, FLAGS_MIXED )
-                hbox.AddF( self._ok, FLAGS_MIXED )
-                
-                self.SetSizer( hbox )
-                
-            
-            Dialog.__init__( self, parent, 'enter width predicate' )
-            
-            InitialiseControls()
-            
-            PopulateControls()
-            
-            ArrangeControls()
-        
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-            wx.CallAfter( self._width.SetFocus )
-            
-        
-        def SimilarTo():
-            
-            def InitialiseControls():
-                
-                self._hash = wx.TextCtrl( self )
-                
-                self._max_hamming = wx.SpinCtrl( self, max = 256 )
-                
-                self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
-                self._ok.SetDefault()
-                self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
-                self._ok.SetForegroundColour( ( 0, 128, 0 ) )
-                
-            
-            def PopulateControls():
-                
-                self._hash.SetValue( 'enter hash' )
-                
-                self._max_hamming.SetValue( 5 )
-                
-            
-            def ArrangeControls():
-                
-                hbox = wx.BoxSizer( wx.HORIZONTAL )
-                
-                hbox.AddF( wx.StaticText( self, label = 'system:similar_to' ), FLAGS_MIXED )
-                hbox.AddF( self._hash, FLAGS_MIXED )
-                hbox.AddF( wx.StaticText( self, label=u'\u2248' ), FLAGS_MIXED )
-                hbox.AddF( self._max_hamming, FLAGS_MIXED )
-                hbox.AddF( self._ok, FLAGS_MIXED )
-                
-                self.SetSizer( hbox )
-                
-            
-            Dialog.__init__( self, parent, 'enter similar to predicate' )
-            
-            InitialiseControls()
-            
-            PopulateControls()
-            
-            ArrangeControls()
-        
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-            wx.CallAfter( self._hash.SetFocus )
-            
-        
-        system_predicates = HC.options[ 'file_system_predicates' ]
-        
-        self._type = predicate_type
-        
-        if self._type == HC.SYSTEM_PREDICATE_TYPE_AGE: Age()
-        elif self._type == HC.SYSTEM_PREDICATE_TYPE_DURATION: Duration()
-        elif self._type == HC.SYSTEM_PREDICATE_TYPE_HASH: Hash()
-        elif self._type == HC.SYSTEM_PREDICATE_TYPE_HEIGHT: Height()
-        elif self._type == HC.SYSTEM_PREDICATE_TYPE_LIMIT: Limit()
-        elif self._type == HC.SYSTEM_PREDICATE_TYPE_MIME: Mime()
-        elif self._type == HC.SYSTEM_PREDICATE_TYPE_NUM_TAGS: NumTags()
-        elif self._type == HC.SYSTEM_PREDICATE_TYPE_RATING: Rating()
-        elif self._type == HC.SYSTEM_PREDICATE_TYPE_RATIO: Ratio()
-        elif self._type == HC.SYSTEM_PREDICATE_TYPE_SIZE: Size()
-        elif self._type == HC.SYSTEM_PREDICATE_TYPE_WIDTH: Width()
-        elif self._type == HC.SYSTEM_PREDICATE_TYPE_SIMILAR_TO: SimilarTo()
-        elif self._type == HC.SYSTEM_PREDICATE_TYPE_NUM_WORDS: NumWords()
-        elif self._type == HC.SYSTEM_PREDICATE_TYPE_FILE_SERVICE: FileService()
-        
-        self._hidden_cancel = wx.Button( self, id = wx.ID_CANCEL, size = ( 0, 0 ) )
-        
-    
-    def EventMime( self, event ):
-        
-        media = self._mime_media.GetStringSelection()
-        
-        self._mime_type.Clear()
-        
-        if media == 'image':
-            
-            self._mime_type.Append( 'any', HC.IMAGES )
-            self._mime_type.Append( 'gif', HC.IMAGE_GIF )
-            self._mime_type.Append( 'jpeg', HC.IMAGE_JPEG )
-            self._mime_type.Append( 'png', HC.IMAGE_PNG )
-            
-        elif media == 'application':
-            
-            self._mime_type.Append( 'any', HC.APPLICATIONS )
-            self._mime_type.Append( 'pdf', HC.APPLICATION_PDF )
-            self._mime_type.Append( 'x-shockwave-flash', HC.APPLICATION_FLASH )
-            
-        elif media == 'audio':
-            
-            self._mime_type.Append( 'any', HC.AUDIO )
-            self._mime_type.Append( 'flac', HC.AUDIO_FLAC )
-            self._mime_type.Append( 'mp3', HC.AUDIO_MP3 )
-            self._mime_type.Append( 'ogg', HC.AUDIO_OGG )
-            self._mime_type.Append( 'x-ms-wma', HC.AUDIO_WMA )
-            
-        elif media == 'video':
-            
-            self._mime_type.Append( 'any', HC.VIDEO )
-            self._mime_type.Append( 'mp4', HC.VIDEO_MP4 )
-            self._mime_type.Append( 'webm', HC.VIDEO_WEBM )
-            self._mime_type.Append( 'x-matroska', HC.VIDEO_MKV )
-            self._mime_type.Append( 'x-ms-wmv', HC.VIDEO_WMV )
-            self._mime_type.Append( 'x-flv', HC.VIDEO_FLV )
-            
-        
-        self._mime_type.SetSelection( 0 )
-        
-    
-    def EventOK( self, event ):
-        
-        if self._type == HC.SYSTEM_PREDICATE_TYPE_AGE: info = ( self._sign.GetStringSelection(), self._years.GetValue(), self._months.GetValue(), self._days.GetValue(), self._hours.GetValue() )
-        elif self._type == HC.SYSTEM_PREDICATE_TYPE_DURATION: info = ( self._sign.GetStringSelection(), self._duration_s.GetValue() * 1000 + self._duration_ms.GetValue() )
-        elif self._type == HC.SYSTEM_PREDICATE_TYPE_HASH:
-            
-            hex_filter = lambda c: c in string.hexdigits
-            
-            hash = filter( hex_filter, self._hash.GetValue().lower() )
-            
-            if len( hash ) == 0: hash == '00'
-            elif len( hash ) % 2 == 1: hash += '0' # since we are later decoding to byte
-            
-            info = hash.decode( 'hex' )
-            
-        elif self._type == HC.SYSTEM_PREDICATE_TYPE_HEIGHT: info = ( self._sign.GetStringSelection(), self._height.GetValue() )
-        elif self._type == HC.SYSTEM_PREDICATE_TYPE_LIMIT: info = self._limit.GetValue()
-        elif self._type == HC.SYSTEM_PREDICATE_TYPE_MIME: info = self._mime_type.GetClientData( self._mime_type.GetSelection() )
-        elif self._type == HC.SYSTEM_PREDICATE_TYPE_NUM_TAGS: info = ( self._sign.GetStringSelection(), self._num_tags.GetValue() )
-        elif self._type == HC.SYSTEM_PREDICATE_TYPE_NUM_WORDS: info = ( self._sign.GetStringSelection(), self._num_words.GetValue() )
-        elif self._type == HC.SYSTEM_PREDICATE_TYPE_RATING:
-            
-            id = event.GetId()
-            
-            if id == HC.LOCAL_RATING_LIKE:
-                
-                service_key = self._service_like.GetClientData( self._service_like.GetSelection() )
-                
-                operator = '='
-                
-                selection = self._value_like.GetSelection()
-                
-                if selection == 0: value = '1'
-                elif selection == 1: value = '0'
-                elif selection == 2: value = 'rated'
-                elif selection == 3: value = 'not rated'
-                
-                info = ( service_key, operator, value )
-                
-            elif id == HC.LOCAL_RATING_NUMERICAL:
-                
-                service_key = self._service_numerical.GetClientData( self._service_numerical.GetSelection() )
-                
-                operator = self._sign_numerical.GetStringSelection()
-                
-                if operator in ( '=rated', '=not rated', '=uncertain' ):
-                    
-                    value = operator[1:]
-                    
-                    operator = '='
-                    
-                else:
-                    
-                    service = HC.app.GetManager( 'services' ).GetService( service_key )
-                    
-                    ( lower, upper ) = service.GetLowerUpper()
-                    
-                    value_raw = self._value_numerical.GetValue()
-                    
-                    value = float( value_raw - lower ) / float( upper - lower )
-                    
-                
-                info = ( service_key, operator, value )
-                
-            
-        elif self._type == HC.SYSTEM_PREDICATE_TYPE_RATIO: info = ( self._sign.GetStringSelection(), self._width.GetValue(), self._height.GetValue() )
-        elif self._type == HC.SYSTEM_PREDICATE_TYPE_SIZE: info = ( self._sign.GetStringSelection(), self._size.GetValue(), HC.ConvertUnitToInteger( self._unit.GetStringSelection() ) )
-        elif self._type == HC.SYSTEM_PREDICATE_TYPE_WIDTH: info = ( self._sign.GetStringSelection(), self._width.GetValue() )
-        elif self._type == HC.SYSTEM_PREDICATE_TYPE_SIMILAR_TO:
-            
-            hex_filter = lambda c: c in string.hexdigits
-            
-            hash = filter( hex_filter, self._hash.GetValue().lower() )
-            
-            if len( hash ) == 0: hash == '00'
-            elif len( hash ) % 2 == 1: hash += '0' # since we are later decoding to byte
-            
-            info = ( hash.decode( 'hex' ), self._max_hamming.GetValue() )
-            
-        elif self._type == HC.SYSTEM_PREDICATE_TYPE_FILE_SERVICE: info = ( self._sign.GetClientData( self._sign.GetSelection() ), self._current_pending.GetClientData( self._current_pending.GetSelection() ), self._file_service_key.GetClientData( self._file_service_key.GetSelection() ) )
-        
-        self._predicate = HC.Predicate( HC.PREDICATE_TYPE_SYSTEM, ( self._type, info ) )
-        
-        self.EndModal( wx.ID_OK )
-        
-    
-    def EventRatingsService( self, event ):
-        
-        try:
-            
-            service = self._service_numerical.GetClientData( self._service_numerical.GetSelection() )
-            
-            ( lower, upper ) = service.GetLowerUpper()
-            
-            self._value_numerical.SetRange( lower, upper )
-            
-            service = self._service_like.GetClientData( self._service_like.GetSelection() )
-            
-        except: pass
-        
-        try:
-            
-            ( like, dislike ) = service.GetLikeDislike()
-            
-            selection = self._value_like.GetSelection()
-            
-            self._value_like.SetString( 0, like )
-            self._value_like.SetString( 1, dislike )
-            
-            self._value_like.SetSelection( selection )
-            
-        except: pass
-        
-    
-    def GetPredicate( self ): return self._predicate
-    
+	
+	def __init__( self, parent, predicate_type ):
+		
+		def Age():
+			
+			def InitialiseControls():
+				
+				self._sign = wx.Choice( self, choices=[ '<', u'\u2248', '>' ] )
+				
+				self._years = wx.SpinCtrl( self, max = 30 )
+				self._months = wx.SpinCtrl( self, max = 60 )
+				self._days = wx.SpinCtrl( self, max = 90 )
+				self._hours = wx.SpinCtrl( self, max = 24 )
+				
+				self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
+				self._ok.SetDefault()
+				self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
+				self._ok.SetForegroundColour( ( 0, 128, 0 ) )
+				
+			
+			def PopulateControls():
+				
+				( sign, years, months, days ) = system_predicates[ 'age' ]
+				
+				self._sign.SetSelection( sign )
+				
+				self._years.SetValue( years )
+				self._months.SetValue( months )
+				self._days.SetValue( days )
+				self._hours.SetValue( 0 )
+				
+			
+			def ArrangeControls():
+				
+				hbox = wx.BoxSizer( wx.HORIZONTAL )
+				
+				hbox.AddF( wx.StaticText( self, label = 'system:age' ), FLAGS_MIXED )
+				hbox.AddF( self._sign, FLAGS_MIXED )
+				hbox.AddF( self._years, FLAGS_MIXED )
+				hbox.AddF( wx.StaticText( self, label = 'years' ), FLAGS_MIXED )
+				hbox.AddF( self._months, FLAGS_MIXED )
+				hbox.AddF( wx.StaticText( self, label = 'months' ), FLAGS_MIXED )
+				hbox.AddF( self._days, FLAGS_MIXED )
+				hbox.AddF( wx.StaticText( self, label = 'days' ), FLAGS_MIXED )
+				hbox.AddF( self._hours, FLAGS_MIXED )
+				hbox.AddF( wx.StaticText( self, label = 'hours' ), FLAGS_MIXED )
+				hbox.AddF( self._ok, FLAGS_MIXED )
+				
+				self.SetSizer( hbox )
+				
+			
+			Dialog.__init__( self, parent, 'enter age predicate' )
+			
+			InitialiseControls()
+			
+			PopulateControls()
+			
+			ArrangeControls()
+		
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+			wx.CallAfter( self._days.SetFocus )
+			
+		
+		def Duration():
+			
+			def InitialiseControls():
+				
+				self._sign = wx.Choice( self, choices=[ '<', u'\u2248', '=', '>' ] )
+				
+				self._duration_s = wx.SpinCtrl( self, max = 3599 )
+				self._duration_ms = wx.SpinCtrl( self, max = 999 )
+				
+				self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
+				self._ok.SetDefault()
+				self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
+				self._ok.SetForegroundColour( ( 0, 128, 0 ) )
+				
+			
+			def PopulateControls():
+				
+				( sign, s, ms ) = system_predicates[ 'duration' ]
+				
+				self._sign.SetSelection( sign )
+				
+				self._duration_s.SetValue( s )
+				self._duration_ms.SetValue( ms )
+				
+			
+			def ArrangeControls():
+				
+				hbox = wx.BoxSizer( wx.HORIZONTAL )
+				
+				hbox.AddF( wx.StaticText( self, label = 'system:duration' ), FLAGS_MIXED )
+				hbox.AddF( self._sign, FLAGS_MIXED )
+				hbox.AddF( self._duration_s, FLAGS_MIXED )
+				hbox.AddF( wx.StaticText( self, label = 's' ), FLAGS_MIXED )
+				hbox.AddF( self._duration_ms, FLAGS_MIXED )
+				hbox.AddF( wx.StaticText( self, label = 'ms' ), FLAGS_MIXED )
+				hbox.AddF( self._ok, FLAGS_MIXED )
+				
+				self.SetSizer( hbox )
+				
+			
+			Dialog.__init__( self, parent, 'enter duration predicate' )
+			
+			InitialiseControls()
+			
+			PopulateControls()
+			
+			ArrangeControls()
+		
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+			wx.CallAfter( self._duration_s.SetFocus )
+			
+		
+		def FileService():
+			
+			def InitialiseControls():
+				
+				self._sign = wx.Choice( self )
+				self._sign.Append( 'is', True )
+				self._sign.Append( 'is not', False )
+				
+				self._current_pending = wx.Choice( self )
+				self._current_pending.Append( 'currently in', HC.CURRENT )
+				self._current_pending.Append( 'pending to', HC.PENDING )
+				
+				self._file_service_key = wx.Choice( self )
+				
+				self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
+				self._ok.SetDefault()
+				self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
+				self._ok.SetForegroundColour( ( 0, 128, 0 ) )
+				
+			
+			def PopulateControls():
+				
+				self._sign.SetSelection( 0 )
+				self._current_pending.SetSelection( 0 )
+				
+				services = HC.app.GetManager( 'services' ).GetServices( ( HC.FILE_REPOSITORY, HC.LOCAL_FILE ) )
+				
+				for service in services: self._file_service_key.Append( service.GetName(), service.GetServiceKey() )
+				self._file_service_key.SetSelection( 0 )
+				
+			
+			def ArrangeControls():
+				
+				hbox = wx.BoxSizer( wx.HORIZONTAL )
+				
+				hbox.AddF( wx.StaticText( self, label = 'system:file service:' ), FLAGS_MIXED )
+				hbox.AddF( self._sign, FLAGS_MIXED )
+				hbox.AddF( self._current_pending, FLAGS_MIXED )
+				hbox.AddF( self._file_service_key, FLAGS_MIXED )
+				hbox.AddF( self._ok, FLAGS_MIXED )
+				
+				self.SetSizer( hbox )
+				
+			
+			Dialog.__init__( self, parent, 'enter file service predicate' )
+			
+			InitialiseControls()
+			
+			PopulateControls()
+			
+			ArrangeControls()
+		
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+			wx.CallAfter( self._sign.SetFocus )
+			
+		
+		def Hash():
+			
+			def InitialiseControls():
+				
+				self._hash = wx.TextCtrl( self )
+				
+				self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
+				self._ok.SetDefault()
+				self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
+				self._ok.SetForegroundColour( ( 0, 128, 0 ) )
+				
+			
+			def PopulateControls():
+				
+				pass
+				
+			
+			def ArrangeControls():
+				
+				hbox = wx.BoxSizer( wx.HORIZONTAL )
+				
+				hbox.AddF( wx.StaticText( self, label = 'system:hash=' ), FLAGS_MIXED )
+				hbox.AddF( self._hash, FLAGS_MIXED )
+				hbox.AddF( self._ok, FLAGS_MIXED )
+				
+				self.SetSizer( hbox )
+				
+			
+			Dialog.__init__( self, parent, 'enter hash predicate' )
+			
+			InitialiseControls()
+			
+			PopulateControls()
+			
+			ArrangeControls()
+		
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+			wx.CallAfter( self._hash.SetFocus )
+			
+		
+		def Height():
+			
+			def InitialiseControls():
+				
+				self._sign = wx.Choice( self, choices=[ '<', u'\u2248', '=', '>' ] )
+				
+				self._height = wx.SpinCtrl( self, max = 200000 )
+				
+				self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
+				self._ok.SetDefault()
+				self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
+				self._ok.SetForegroundColour( ( 0, 128, 0 ) )
+				
+			
+			def PopulateControls():
+				
+				( sign, height ) = system_predicates[ 'height' ]
+				
+				self._sign.SetSelection( sign )
+				
+				self._height.SetValue( height )
+				
+			
+			def ArrangeControls():
+				
+				hbox = wx.BoxSizer( wx.HORIZONTAL )
+				
+				hbox.AddF( wx.StaticText( self, label = 'system:height' ), FLAGS_MIXED )
+				hbox.AddF( self._sign, FLAGS_MIXED )
+				hbox.AddF( self._height, FLAGS_MIXED )
+				hbox.AddF( self._ok, FLAGS_MIXED )
+				
+				self.SetSizer( hbox )
+				
+			
+			Dialog.__init__( self, parent, 'enter height predicate' )
+			
+			InitialiseControls()
+			
+			PopulateControls()
+			
+			ArrangeControls()
+		
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+			wx.CallAfter( self._height.SetFocus )
+			
+		
+		def Limit():
+			
+			def InitialiseControls():
+				
+				self._limit = wx.SpinCtrl( self, max = 1000000 )
+				
+				self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
+				self._ok.SetDefault()
+				self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
+				self._ok.SetForegroundColour( ( 0, 128, 0 ) )
+				
+			
+			def PopulateControls():
+				
+				limit = system_predicates[ 'limit' ]
+				
+				self._limit.SetValue( limit )
+				
+			
+			def ArrangeControls():
+				
+				hbox = wx.BoxSizer( wx.HORIZONTAL )
+				
+				hbox.AddF( wx.StaticText( self, label = 'system:limit=' ), FLAGS_MIXED )
+				hbox.AddF( self._limit, FLAGS_MIXED )
+				hbox.AddF( self._ok, FLAGS_MIXED )
+				
+				self.SetSizer( hbox )
+				
+			
+			Dialog.__init__( self, parent, 'enter limit predicate' )
+			
+			InitialiseControls()
+			
+			PopulateControls()
+			
+			ArrangeControls()
+		
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+			wx.CallAfter( self._limit.SetFocus )
+			
+		
+		def Mime():
+			
+			def InitialiseControls():
+				
+				self._mime_media = wx.Choice( self, choices = [ 'image', 'application', 'audio', 'video' ] )
+				self._mime_media.Bind( wx.EVT_CHOICE, self.EventMime )
+				
+				self._mime_type = wx.Choice( self, choices = [], size = ( 120, -1 ) )
+				
+				self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
+				self._ok.SetDefault()
+				self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
+				self._ok.SetForegroundColour( ( 0, 128, 0 ) )
+				
+			
+			def PopulateControls():
+				
+				( media, media_type ) = system_predicates[ 'mime' ]
+				
+				self._mime_media.SetSelection( media )
+				
+				self.EventMime( None )
+				
+				self._mime_type.SetSelection( media_type )
+				
+			
+			def ArrangeControls():
+				
+				hbox = wx.BoxSizer( wx.HORIZONTAL )
+				
+				hbox.AddF( wx.StaticText( self, label = 'system:mime' ), FLAGS_MIXED )
+				hbox.AddF( self._mime_media, FLAGS_MIXED )
+				hbox.AddF( wx.StaticText( self, label = '/' ), FLAGS_MIXED )
+				hbox.AddF( self._mime_type, FLAGS_MIXED )
+				hbox.AddF( self._ok, FLAGS_MIXED )
+				
+				self.SetSizer( hbox )
+				
+			
+			Dialog.__init__( self, parent, 'enter mime predicate' )
+			
+			InitialiseControls()
+			
+			PopulateControls()
+			
+			ArrangeControls()
+		
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+			wx.CallAfter( self._mime_media.SetFocus )
+			
+		
+		def NumTags():
+			
+			def InitialiseControls():
+				
+				self._sign = wx.Choice( self, choices=[ '<', u'\u2248', '=', '>' ] )
+				
+				self._num_tags = wx.SpinCtrl( self, max = 2000 )
+				
+				self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
+				self._ok.SetDefault()
+				self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
+				self._ok.SetForegroundColour( ( 0, 128, 0 ) )
+				
+			
+			def PopulateControls():
+				
+				( sign, num_tags ) = system_predicates[ 'num_tags' ]
+				
+				self._sign.SetSelection( sign )
+				
+				self._num_tags.SetValue( num_tags )
+				
+			
+			def ArrangeControls():
+				
+				hbox = wx.BoxSizer( wx.HORIZONTAL )
+				
+				hbox.AddF( wx.StaticText( self, label = 'system:num_tags' ), FLAGS_MIXED )
+				hbox.AddF( self._sign, FLAGS_MIXED )
+				hbox.AddF( self._num_tags, FLAGS_MIXED )
+				hbox.AddF( self._ok, FLAGS_MIXED )
+				
+				self.SetSizer( hbox )
+				
+			
+			Dialog.__init__( self, parent, 'enter number of tags predicate' )
+			
+			InitialiseControls()
+			
+			PopulateControls()
+			
+			ArrangeControls()
+		
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+			wx.CallAfter( self._num_tags.SetFocus )
+			
+		
+		def NumWords():
+			
+			def InitialiseControls():
+				
+				self._sign = wx.Choice( self, choices=[ '<', u'\u2248', '=', '>' ] )
+				
+				self._num_words = wx.SpinCtrl( self, max = 1000000 )
+				
+				self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
+				self._ok.SetDefault()
+				self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
+				self._ok.SetForegroundColour( ( 0, 128, 0 ) )
+				
+			
+			def PopulateControls():
+				
+				( sign, num_words ) = system_predicates[ 'num_words' ]
+				
+				self._sign.SetSelection( sign )
+				
+				self._num_words.SetValue( num_words )
+				
+			
+			def ArrangeControls():
+				
+				hbox = wx.BoxSizer( wx.HORIZONTAL )
+				
+				hbox.AddF( wx.StaticText( self, label = 'system:num_words' ), FLAGS_MIXED )
+				hbox.AddF( self._sign, FLAGS_MIXED )
+				hbox.AddF( self._num_words, FLAGS_MIXED )
+				hbox.AddF( self._ok, FLAGS_MIXED )
+				
+				self.SetSizer( hbox )
+				
+			
+			Dialog.__init__( self, parent, 'enter number of words predicate' )
+			
+			InitialiseControls()
+			
+			PopulateControls()
+			
+			ArrangeControls()
+		
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+			wx.CallAfter( self._num_words.SetFocus )
+			
+		
+		def Rating():
+			
+			def InitialiseControls():
+				
+				self._service_numerical = wx.Choice( self )
+				self._service_numerical.Bind( wx.EVT_CHOICE, self.EventRatingsService )
+				
+				self._sign_numerical = wx.Choice( self, choices=[ '>', '<', '=', u'\u2248', '=rated', '=not rated', '=uncertain' ] )
+				
+				self._value_numerical = wx.SpinCtrl( self, min = 0, max = 50000 ) # set bounds based on current service
+				
+				self._first_ok = wx.Button( self, label = 'Ok', id = HC.LOCAL_RATING_NUMERICAL )
+				self._first_ok.Bind( wx.EVT_BUTTON, self.EventOK )
+				self._first_ok.SetForegroundColour( ( 0, 128, 0 ) )
+				
+				self._service_like = wx.Choice( self )
+				self._service_like.Bind( wx.EVT_CHOICE, self.EventRatingsService )
+				
+				self._value_like = wx.Choice( self, choices=[ 'like', 'dislike', 'rated', 'not rated' ] ) # set words based on current service
+				
+				self._second_ok = wx.Button( self, label = 'Ok', id = HC.LOCAL_RATING_LIKE )
+				self._second_ok.Bind( wx.EVT_BUTTON, self.EventOK )
+				self._second_ok.SetForegroundColour( ( 0, 128, 0 ) )
+				
+			
+			def PopulateControls():
+				
+				self._local_numericals = HC.app.GetManager( 'services' ).GetServices( ( HC.LOCAL_RATING_NUMERICAL, ) )
+				self._local_likes = HC.app.GetManager( 'services' ).GetServices( ( HC.LOCAL_RATING_LIKE, ) )
+				
+				for service in self._local_numericals: self._service_numerical.Append( service.GetName(), service.GetServiceKey() )
+				
+				( sign, value ) = system_predicates[ 'local_rating_numerical' ]
+				
+				self._sign_numerical.SetSelection( sign )
+				
+				self._value_numerical.SetValue( value )
+				
+				for service in self._local_likes: self._service_like.Append( service.GetName(), service.GetServiceKey() )
+				
+				value = system_predicates[ 'local_rating_like' ]
+				
+				self._value_like.SetSelection( value )
+				
+				if len( self._local_numericals ) > 0: self._service_numerical.SetSelection( 0 )
+				if len( self._local_likes ) > 0: self._service_like.SetSelection( 0 )
+				
+				self.EventRatingsService( None )
+				
+			
+			def ArrangeControls():
+				
+				vbox = wx.BoxSizer( wx.VERTICAL )
+				
+				hbox = wx.BoxSizer( wx.HORIZONTAL )
+				
+				hbox.AddF( wx.StaticText( self, label = 'system:rating:' ), FLAGS_MIXED )
+				hbox.AddF( self._service_numerical, FLAGS_MIXED )
+				hbox.AddF( self._sign_numerical, FLAGS_MIXED )
+				hbox.AddF( self._value_numerical, FLAGS_MIXED )
+				hbox.AddF( self._first_ok, FLAGS_MIXED )
+				
+				vbox.AddF( hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
+				
+				hbox = wx.BoxSizer( wx.HORIZONTAL )
+				
+				hbox.AddF( wx.StaticText( self, label = 'system:rating:' ), FLAGS_MIXED )
+				hbox.AddF( self._service_like, FLAGS_MIXED )
+				hbox.AddF( wx.StaticText( self, label = '=' ), FLAGS_MIXED )
+				hbox.AddF( self._value_like, FLAGS_MIXED )
+				hbox.AddF( self._second_ok, FLAGS_MIXED )
+				
+				vbox.AddF( hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
+				
+				self.SetSizer( vbox )
+				
+			
+			Dialog.__init__( self, parent, 'enter rating predicate' )
+			
+			InitialiseControls()
+			
+			PopulateControls()
+			
+			ArrangeControls()
+		
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+			wx.CallAfter( self._value_numerical.SetFocus )
+			
+		
+		def Ratio():
+			
+			def InitialiseControls():
+				
+				self._sign = wx.Choice( self, choices = [ '=', u'\u2248' ] )
+				
+				self._width = wx.SpinCtrl( self, max = 50000 )
+				
+				self._height = wx.SpinCtrl( self, max = 50000 )
+				
+				self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
+				self._ok.SetDefault()
+				self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
+				self._ok.SetForegroundColour( ( 0, 128, 0 ) )
+				
+			
+			def PopulateControls():
+				
+				( sign, width, height ) = system_predicates[ 'ratio' ]
+				
+				self._sign.SetSelection( sign )
+				
+				self._width.SetValue( width )
+				
+				self._height.SetValue( height )
+				
+			
+			def ArrangeControls():
+				
+				hbox = wx.BoxSizer( wx.HORIZONTAL )
+				
+				hbox.AddF( wx.StaticText( self, label = 'system:ratio' ), FLAGS_MIXED )
+				hbox.AddF( self._sign, FLAGS_MIXED )
+				hbox.AddF( self._width, FLAGS_MIXED )
+				hbox.AddF( wx.StaticText( self, label = ':' ), FLAGS_MIXED )
+				hbox.AddF( self._height, FLAGS_MIXED )
+				hbox.AddF( self._ok, FLAGS_MIXED )
+				
+				self.SetSizer( hbox )
+				
+			
+			Dialog.__init__( self, parent, 'enter ratio predicate' )
+			
+			InitialiseControls()
+			
+			PopulateControls()
+			
+			ArrangeControls()
+		
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+			wx.CallAfter( self._sign.SetFocus )
+			
+		
+		def Size():
+			
+			def InitialiseControls():
+				
+				self._sign = wx.Choice( self, choices = [ '<', u'\u2248', '=', '>' ] )
+				
+				self._size = wx.SpinCtrl( self, max = 1048576 )
+				
+				self._unit = wx.Choice( self, choices = [ 'B', 'KB', 'MB', 'GB' ] )
+				
+				self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
+				self._ok.SetDefault()
+				self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
+				self._ok.SetForegroundColour( ( 0, 128, 0 ) )
+				
+			
+			def PopulateControls():
+				
+				( sign, size, unit ) = system_predicates[ 'size' ]
+				
+				self._sign.SetSelection( sign )
+				
+				self._size.SetValue( size )
+				
+				self._unit.SetSelection( unit )
+				
+			
+			def ArrangeControls():
+				
+				hbox = wx.BoxSizer( wx.HORIZONTAL )
+				
+				hbox.AddF( wx.StaticText( self, label = 'system:size' ), FLAGS_MIXED )
+				hbox.AddF( self._sign, FLAGS_MIXED )
+				hbox.AddF( self._size, FLAGS_MIXED )
+				hbox.AddF( self._unit, FLAGS_MIXED )
+				hbox.AddF( self._ok, FLAGS_MIXED )
+				
+				self.SetSizer( hbox )
+				
+			
+			Dialog.__init__( self, parent, 'enter size predicate' )
+			
+			InitialiseControls()
+			
+			PopulateControls()
+			
+			ArrangeControls()
+		
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+			wx.CallAfter( self._size.SetFocus )
+			
+		
+		def Width():
+			
+			def InitialiseControls():
+				
+				self._sign = wx.Choice( self, choices = [ '<', u'\u2248', '=', '>' ] )
+				
+				self._width = wx.SpinCtrl( self, max = 200000 )
+				
+				self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
+				self._ok.SetDefault()
+				self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
+				self._ok.SetForegroundColour( ( 0, 128, 0 ) )
+				
+			
+			def PopulateControls():
+				
+				( sign, width ) = system_predicates[ 'width' ]
+				
+				self._sign.SetSelection( sign )
+				
+				self._width.SetValue( width )
+				
+			
+			def ArrangeControls():
+				
+				hbox = wx.BoxSizer( wx.HORIZONTAL )
+				
+				hbox.AddF( wx.StaticText( self, label = 'system:width' ), FLAGS_MIXED )
+				hbox.AddF( self._sign, FLAGS_MIXED )
+				hbox.AddF( self._width, FLAGS_MIXED )
+				hbox.AddF( self._ok, FLAGS_MIXED )
+				
+				self.SetSizer( hbox )
+				
+			
+			Dialog.__init__( self, parent, 'enter width predicate' )
+			
+			InitialiseControls()
+			
+			PopulateControls()
+			
+			ArrangeControls()
+		
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+			wx.CallAfter( self._width.SetFocus )
+			
+		
+		def SimilarTo():
+			
+			def InitialiseControls():
+				
+				self._hash = wx.TextCtrl( self )
+				
+				self._max_hamming = wx.SpinCtrl( self, max = 256 )
+				
+				self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
+				self._ok.SetDefault()
+				self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
+				self._ok.SetForegroundColour( ( 0, 128, 0 ) )
+				
+			
+			def PopulateControls():
+				
+				self._hash.SetValue( 'enter hash' )
+				
+				self._max_hamming.SetValue( 5 )
+				
+			
+			def ArrangeControls():
+				
+				hbox = wx.BoxSizer( wx.HORIZONTAL )
+				
+				hbox.AddF( wx.StaticText( self, label = 'system:similar_to' ), FLAGS_MIXED )
+				hbox.AddF( self._hash, FLAGS_MIXED )
+				hbox.AddF( wx.StaticText( self, label=u'\u2248' ), FLAGS_MIXED )
+				hbox.AddF( self._max_hamming, FLAGS_MIXED )
+				hbox.AddF( self._ok, FLAGS_MIXED )
+				
+				self.SetSizer( hbox )
+				
+			
+			Dialog.__init__( self, parent, 'enter similar to predicate' )
+			
+			InitialiseControls()
+			
+			PopulateControls()
+			
+			ArrangeControls()
+		
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+			wx.CallAfter( self._hash.SetFocus )
+			
+		
+		system_predicates = HC.options[ 'file_system_predicates' ]
+		
+		self._type = predicate_type
+		
+		if self._type == HC.SYSTEM_PREDICATE_TYPE_AGE: Age()
+		elif self._type == HC.SYSTEM_PREDICATE_TYPE_DURATION: Duration()
+		elif self._type == HC.SYSTEM_PREDICATE_TYPE_HASH: Hash()
+		elif self._type == HC.SYSTEM_PREDICATE_TYPE_HEIGHT: Height()
+		elif self._type == HC.SYSTEM_PREDICATE_TYPE_LIMIT: Limit()
+		elif self._type == HC.SYSTEM_PREDICATE_TYPE_MIME: Mime()
+		elif self._type == HC.SYSTEM_PREDICATE_TYPE_NUM_TAGS: NumTags()
+		elif self._type == HC.SYSTEM_PREDICATE_TYPE_RATING: Rating()
+		elif self._type == HC.SYSTEM_PREDICATE_TYPE_RATIO: Ratio()
+		elif self._type == HC.SYSTEM_PREDICATE_TYPE_SIZE: Size()
+		elif self._type == HC.SYSTEM_PREDICATE_TYPE_WIDTH: Width()
+		elif self._type == HC.SYSTEM_PREDICATE_TYPE_SIMILAR_TO: SimilarTo()
+		elif self._type == HC.SYSTEM_PREDICATE_TYPE_NUM_WORDS: NumWords()
+		elif self._type == HC.SYSTEM_PREDICATE_TYPE_FILE_SERVICE: FileService()
+		
+		self._hidden_cancel = wx.Button( self, id = wx.ID_CANCEL, size = ( 0, 0 ) )
+		
+	
+	def EventMime( self, event ):
+		
+		media = self._mime_media.GetStringSelection()
+		
+		self._mime_type.Clear()
+		
+		if media == 'image':
+			
+			self._mime_type.Append( 'any', HC.IMAGES )
+			self._mime_type.Append( 'gif', HC.IMAGE_GIF )
+			self._mime_type.Append( 'jpeg', HC.IMAGE_JPEG )
+			self._mime_type.Append( 'png', HC.IMAGE_PNG )
+			
+		elif media == 'application':
+			
+			self._mime_type.Append( 'any', HC.APPLICATIONS )
+			self._mime_type.Append( 'pdf', HC.APPLICATION_PDF )
+			self._mime_type.Append( 'x-shockwave-flash', HC.APPLICATION_FLASH )
+			
+		elif media == 'audio':
+			
+			self._mime_type.Append( 'any', HC.AUDIO )
+			self._mime_type.Append( 'flac', HC.AUDIO_FLAC )
+			self._mime_type.Append( 'mp3', HC.AUDIO_MP3 )
+			self._mime_type.Append( 'ogg', HC.AUDIO_OGG )
+			self._mime_type.Append( 'x-ms-wma', HC.AUDIO_WMA )
+			
+		elif media == 'video':
+			
+			self._mime_type.Append( 'any', HC.VIDEO )
+			self._mime_type.Append( 'mp4', HC.VIDEO_MP4 )
+			self._mime_type.Append( 'webm', HC.VIDEO_WEBM )
+			self._mime_type.Append( 'x-matroska', HC.VIDEO_MKV )
+			self._mime_type.Append( 'x-ms-wmv', HC.VIDEO_WMV )
+			self._mime_type.Append( 'x-flv', HC.VIDEO_FLV )
+			
+		
+		self._mime_type.SetSelection( 0 )
+		
+	
+	def EventOK( self, event ):
+		
+		if self._type == HC.SYSTEM_PREDICATE_TYPE_AGE: info = ( self._sign.GetStringSelection(), self._years.GetValue(), self._months.GetValue(), self._days.GetValue(), self._hours.GetValue() )
+		elif self._type == HC.SYSTEM_PREDICATE_TYPE_DURATION: info = ( self._sign.GetStringSelection(), self._duration_s.GetValue() * 1000 + self._duration_ms.GetValue() )
+		elif self._type == HC.SYSTEM_PREDICATE_TYPE_HASH:
+			
+			hex_filter = lambda c: c in string.hexdigits
+			
+			hash = filter( hex_filter, self._hash.GetValue().lower() )
+			
+			if len( hash ) == 0: hash == '00'
+			elif len( hash ) % 2 == 1: hash += '0' # since we are later decoding to byte
+			
+			info = hash.decode( 'hex' )
+			
+		elif self._type == HC.SYSTEM_PREDICATE_TYPE_HEIGHT: info = ( self._sign.GetStringSelection(), self._height.GetValue() )
+		elif self._type == HC.SYSTEM_PREDICATE_TYPE_LIMIT: info = self._limit.GetValue()
+		elif self._type == HC.SYSTEM_PREDICATE_TYPE_MIME: info = self._mime_type.GetClientData( self._mime_type.GetSelection() )
+		elif self._type == HC.SYSTEM_PREDICATE_TYPE_NUM_TAGS: info = ( self._sign.GetStringSelection(), self._num_tags.GetValue() )
+		elif self._type == HC.SYSTEM_PREDICATE_TYPE_NUM_WORDS: info = ( self._sign.GetStringSelection(), self._num_words.GetValue() )
+		elif self._type == HC.SYSTEM_PREDICATE_TYPE_RATING:
+			
+			id = event.GetId()
+			
+			if id == HC.LOCAL_RATING_LIKE:
+				
+				service_key = self._service_like.GetClientData( self._service_like.GetSelection() )
+				
+				operator = '='
+				
+				selection = self._value_like.GetSelection()
+				
+				if selection == 0: value = '1'
+				elif selection == 1: value = '0'
+				elif selection == 2: value = 'rated'
+				elif selection == 3: value = 'not rated'
+				
+				info = ( service_key, operator, value )
+				
+			elif id == HC.LOCAL_RATING_NUMERICAL:
+				
+				service_key = self._service_numerical.GetClientData( self._service_numerical.GetSelection() )
+				
+				operator = self._sign_numerical.GetStringSelection()
+				
+				if operator in ( '=rated', '=not rated', '=uncertain' ):
+					
+					value = operator[1:]
+					
+					operator = '='
+					
+				else:
+					
+					service = HC.app.GetManager( 'services' ).GetService( service_key )
+					
+					( lower, upper ) = service.GetLowerUpper()
+					
+					value_raw = self._value_numerical.GetValue()
+					
+					value = float( value_raw - lower ) / float( upper - lower )
+					
+				
+				info = ( service_key, operator, value )
+				
+			
+		elif self._type == HC.SYSTEM_PREDICATE_TYPE_RATIO: info = ( self._sign.GetStringSelection(), self._width.GetValue(), self._height.GetValue() )
+		elif self._type == HC.SYSTEM_PREDICATE_TYPE_SIZE: info = ( self._sign.GetStringSelection(), self._size.GetValue(), HC.ConvertUnitToInteger( self._unit.GetStringSelection() ) )
+		elif self._type == HC.SYSTEM_PREDICATE_TYPE_WIDTH: info = ( self._sign.GetStringSelection(), self._width.GetValue() )
+		elif self._type == HC.SYSTEM_PREDICATE_TYPE_SIMILAR_TO:
+			
+			hex_filter = lambda c: c in string.hexdigits
+			
+			hash = filter( hex_filter, self._hash.GetValue().lower() )
+			
+			if len( hash ) == 0: hash == '00'
+			elif len( hash ) % 2 == 1: hash += '0' # since we are later decoding to byte
+			
+			info = ( hash.decode( 'hex' ), self._max_hamming.GetValue() )
+			
+		elif self._type == HC.SYSTEM_PREDICATE_TYPE_FILE_SERVICE: info = ( self._sign.GetClientData( self._sign.GetSelection() ), self._current_pending.GetClientData( self._current_pending.GetSelection() ), self._file_service_key.GetClientData( self._file_service_key.GetSelection() ) )
+		
+		self._predicate = HC.Predicate( HC.PREDICATE_TYPE_SYSTEM, ( self._type, info ) )
+		
+		self.EndModal( wx.ID_OK )
+		
+	
+	def EventRatingsService( self, event ):
+		
+		try:
+			
+			service = self._service_numerical.GetClientData( self._service_numerical.GetSelection() )
+			
+			( lower, upper ) = service.GetLowerUpper()
+			
+			self._value_numerical.SetRange( lower, upper )
+			
+			service = self._service_like.GetClientData( self._service_like.GetSelection() )
+			
+		except: pass
+		
+		try:
+			
+			( like, dislike ) = service.GetLikeDislike()
+			
+			selection = self._value_like.GetSelection()
+			
+			self._value_like.SetString( 0, like )
+			self._value_like.SetString( 1, dislike )
+			
+			self._value_like.SetSelection( selection )
+			
+		except: pass
+		
+	
+	def GetPredicate( self ): return self._predicate
+	
 class DialogInputLocalBooruShare( Dialog ):
-    
-    def __init__( self, parent, share_key, name, text, timeout, hashes, new_share = False ):
-        
-        def InitialiseControls():
-            
-            self._name = wx.TextCtrl( self )
-            
-            self._text = wx.TextCtrl( self, style = wx.TE_MULTILINE )
-            self._text.SetMinSize( ( -1, 100 ) )
-            
-            message = 'expires in' 
-            
-            self._timeout_number = ClientGUICommon.NoneableSpinCtrl( self, message, none_phrase = 'no expiration', max = 1000000, multiplier = 1 )
-            
-            self._timeout_multiplier = ClientGUICommon.BetterChoice( self )
-            self._timeout_multiplier.Append( 'minutes', 60 )
-            self._timeout_multiplier.Append( 'hours', 60 * 60 )
-            self._timeout_multiplier.Append( 'days', 60 * 60 * 24 )
-            
-            self._copy_internal_share_link = wx.Button( self, label = 'copy internal share link' )
-            self._copy_internal_share_link.Bind( wx.EVT_BUTTON, self.EventCopyInternalShareURL )
-            
-            self._copy_external_share_link = wx.Button( self, label = 'copy external share link' )
-            self._copy_external_share_link.Bind( wx.EVT_BUTTON, self.EventCopyExternalShareURL )
-            
-            self._ok = wx.Button( self, id = wx.ID_OK, label = 'ok' )
-            self._ok.SetForegroundColour( ( 0, 128, 0 ) )
-            
-            self._cancel = wx.Button( self, id = wx.ID_CANCEL, label = 'cancel' )
-            self._cancel.SetForegroundColour( ( 128, 0, 0 ) )
-            
-        
-        def PopulateControls():
-            
-            self._share_key = share_key
-            self._name.SetValue( name )
-            self._text.SetValue( text )
-            
-            if timeout is None:
-                
-                self._timeout_number.SetValue( None )
-                
-                self._timeout_multiplier.SelectClientData( 60 )
-                
-            else:
-                
-                time_left = max( 0, timeout - HC.GetNow() )
-                
-                if time_left < 60 * 60 * 12: time_value = 60
-                elif time_left < 60 * 60 * 24 * 7: time_value = 60 * 60 
-                else: time_value = 60 * 60 * 24
-                
-                self._timeout_number.SetValue( time_left / time_value )
-                
-                self._timeout_multiplier.SelectClientData( time_value )
-                
-            
-            self._hashes = hashes
-            
-        
-        def ArrangeControls():
-            
-            gridbox = wx.FlexGridSizer( 0, 2 )
-            
-            gridbox.AddGrowableCol( 1, 1 )
-            
-            gridbox.AddF( wx.StaticText( self, label = 'share name' ), FLAGS_MIXED )
-            gridbox.AddF( self._name, FLAGS_EXPAND_BOTH_WAYS )
-            
-            gridbox.AddF( wx.StaticText( self, label = 'share text' ), FLAGS_MIXED )
-            gridbox.AddF( self._text, FLAGS_EXPAND_BOTH_WAYS )
-            
-            timeout_box = wx.BoxSizer( wx.HORIZONTAL )
-            timeout_box.AddF( self._timeout_number, FLAGS_EXPAND_BOTH_WAYS )
-            timeout_box.AddF( self._timeout_multiplier, FLAGS_EXPAND_BOTH_WAYS )
-            
-            link_box = wx.BoxSizer( wx.HORIZONTAL )
-            link_box.AddF( self._copy_internal_share_link, FLAGS_MIXED )
-            link_box.AddF( self._copy_external_share_link, FLAGS_MIXED )
-            
-            b_box = wx.BoxSizer( wx.HORIZONTAL )
-            b_box.AddF( self._ok, FLAGS_MIXED )
-            b_box.AddF( self._cancel, FLAGS_MIXED )
-            
-            vbox = wx.BoxSizer( wx.VERTICAL )
-            
-            intro = 'Sharing ' + HC.ConvertIntToPrettyString( len( self._hashes ) ) + ' files.'
-            intro += os.linesep + 'Title and text are optional.'
-            
-            if new_share: intro += os.linesep + 'The link will not work until you ok this dialog.'
-            
-            vbox.AddF( wx.StaticText( self, label = intro ), FLAGS_EXPAND_PERPENDICULAR )
-            vbox.AddF( gridbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
-            vbox.AddF( timeout_box, FLAGS_EXPAND_SIZER_PERPENDICULAR )
-            vbox.AddF( link_box, FLAGS_BUTTON_SIZER )
-            vbox.AddF( b_box, FLAGS_BUTTON_SIZER )
-            
-            self.SetSizer( vbox )
-            
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            x = max( x, 350 )
-            
-            self.SetInitialSize( ( x, y ) )
-            
-        
-        Dialog.__init__( self, parent, 'configure local booru share' )
-        
-        InitialiseControls()
-        
-        PopulateControls()
-        
-        ArrangeControls()
-        
-        wx.CallAfter( self._ok.SetFocus )
-        
-    
-    def EventCopyExternalShareURL( self, event ):
-        
-        self._service = HC.app.GetManager( 'services' ).GetService( HC.LOCAL_BOORU_SERVICE_KEY )
-        
-        info = self._service.GetInfo()
-        
-        external_ip = HydrusNATPunch.GetExternalIP() # eventually check for optional host replacement here
-        
-        external_port = info[ 'upnp' ]
-        
-        if external_port is None: external_port = info[ 'port' ]
-        
-        url = 'http://' + external_ip + ':' + str( external_port ) + '/gallery?share_key=' + self._share_key.encode( 'hex' )
-        
-        HC.pubsub.pub( 'clipboard', 'text', url )
-        
-    
-    def EventCopyInternalShareURL( self, event ):
-        
-        self._service = HC.app.GetManager( 'services' ).GetService( HC.LOCAL_BOORU_SERVICE_KEY )
-        
-        info = self._service.GetInfo()
-        
-        internal_ip = '127.0.0.1'
-        
-        internal_port = info[ 'port' ]
-        
-        url = 'http://' + internal_ip + ':' + str( internal_port ) + '/gallery?share_key=' + self._share_key.encode( 'hex' )
-        
-        HC.pubsub.pub( 'clipboard', 'text', url )
-        
-    
-    def GetInfo( self ):
-        
-        name = self._name.GetValue()
-        
-        text = self._text.GetValue()
-        
-        timeout = self._timeout_number.GetValue()
-        
-        if timeout is not None: timeout = timeout * self._timeout_multiplier.GetChoice() + HC.GetNow()
-        
-        return ( self._share_key, name, text, timeout, self._hashes )
-        
-    
+	
+	def __init__( self, parent, share_key, name, text, timeout, hashes, new_share = False ):
+		
+		def InitialiseControls():
+			
+			self._name = wx.TextCtrl( self )
+			
+			self._text = wx.TextCtrl( self, style = wx.TE_MULTILINE )
+			self._text.SetMinSize( ( -1, 100 ) )
+			
+			message = 'expires in' 
+			
+			self._timeout_number = ClientGUICommon.NoneableSpinCtrl( self, message, none_phrase = 'no expiration', max = 1000000, multiplier = 1 )
+			
+			self._timeout_multiplier = ClientGUICommon.BetterChoice( self )
+			self._timeout_multiplier.Append( 'minutes', 60 )
+			self._timeout_multiplier.Append( 'hours', 60 * 60 )
+			self._timeout_multiplier.Append( 'days', 60 * 60 * 24 )
+			
+			self._copy_internal_share_link = wx.Button( self, label = 'copy internal share link' )
+			self._copy_internal_share_link.Bind( wx.EVT_BUTTON, self.EventCopyInternalShareURL )
+			
+			self._copy_external_share_link = wx.Button( self, label = 'copy external share link' )
+			self._copy_external_share_link.Bind( wx.EVT_BUTTON, self.EventCopyExternalShareURL )
+			
+			self._ok = wx.Button( self, id = wx.ID_OK, label = 'ok' )
+			self._ok.SetForegroundColour( ( 0, 128, 0 ) )
+			
+			self._cancel = wx.Button( self, id = wx.ID_CANCEL, label = 'cancel' )
+			self._cancel.SetForegroundColour( ( 128, 0, 0 ) )
+			
+		
+		def PopulateControls():
+			
+			self._share_key = share_key
+			self._name.SetValue( name )
+			self._text.SetValue( text )
+			
+			if timeout is None:
+				
+				self._timeout_number.SetValue( None )
+				
+				self._timeout_multiplier.SelectClientData( 60 )
+				
+			else:
+				
+				time_left = max( 0, timeout - HC.GetNow() )
+				
+				if time_left < 60 * 60 * 12: time_value = 60
+				elif time_left < 60 * 60 * 24 * 7: time_value = 60 * 60 
+				else: time_value = 60 * 60 * 24
+				
+				self._timeout_number.SetValue( time_left / time_value )
+				
+				self._timeout_multiplier.SelectClientData( time_value )
+				
+			
+			self._hashes = hashes
+			
+		
+		def ArrangeControls():
+			
+			gridbox = wx.FlexGridSizer( 0, 2 )
+			
+			gridbox.AddGrowableCol( 1, 1 )
+			
+			gridbox.AddF( wx.StaticText( self, label = 'share name' ), FLAGS_MIXED )
+			gridbox.AddF( self._name, FLAGS_EXPAND_BOTH_WAYS )
+			
+			gridbox.AddF( wx.StaticText( self, label = 'share text' ), FLAGS_MIXED )
+			gridbox.AddF( self._text, FLAGS_EXPAND_BOTH_WAYS )
+			
+			timeout_box = wx.BoxSizer( wx.HORIZONTAL )
+			timeout_box.AddF( self._timeout_number, FLAGS_EXPAND_BOTH_WAYS )
+			timeout_box.AddF( self._timeout_multiplier, FLAGS_EXPAND_BOTH_WAYS )
+			
+			link_box = wx.BoxSizer( wx.HORIZONTAL )
+			link_box.AddF( self._copy_internal_share_link, FLAGS_MIXED )
+			link_box.AddF( self._copy_external_share_link, FLAGS_MIXED )
+			
+			b_box = wx.BoxSizer( wx.HORIZONTAL )
+			b_box.AddF( self._ok, FLAGS_MIXED )
+			b_box.AddF( self._cancel, FLAGS_MIXED )
+			
+			vbox = wx.BoxSizer( wx.VERTICAL )
+			
+			intro = 'Sharing ' + HC.ConvertIntToPrettyString( len( self._hashes ) ) + ' files.'
+			intro += os.linesep + 'Title and text are optional.'
+			
+			if new_share: intro += os.linesep + 'The link will not work until you ok this dialog.'
+			
+			vbox.AddF( wx.StaticText( self, label = intro ), FLAGS_EXPAND_PERPENDICULAR )
+			vbox.AddF( gridbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
+			vbox.AddF( timeout_box, FLAGS_EXPAND_SIZER_PERPENDICULAR )
+			vbox.AddF( link_box, FLAGS_BUTTON_SIZER )
+			vbox.AddF( b_box, FLAGS_BUTTON_SIZER )
+			
+			self.SetSizer( vbox )
+			
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			x = max( x, 350 )
+			
+			self.SetInitialSize( ( x, y ) )
+			
+		
+		Dialog.__init__( self, parent, 'configure local booru share' )
+		
+		InitialiseControls()
+		
+		PopulateControls()
+		
+		ArrangeControls()
+		
+		wx.CallAfter( self._ok.SetFocus )
+		
+	
+	def EventCopyExternalShareURL( self, event ):
+		
+		self._service = HC.app.GetManager( 'services' ).GetService( HC.LOCAL_BOORU_SERVICE_KEY )
+		
+		info = self._service.GetInfo()
+		
+		external_ip = HydrusNATPunch.GetExternalIP() # eventually check for optional host replacement here
+		
+		external_port = info[ 'upnp' ]
+		
+		if external_port is None: external_port = info[ 'port' ]
+		
+		url = 'http://' + external_ip + ':' + str( external_port ) + '/gallery?share_key=' + self._share_key.encode( 'hex' )
+		
+		HC.pubsub.pub( 'clipboard', 'text', url )
+		
+	
+	def EventCopyInternalShareURL( self, event ):
+		
+		self._service = HC.app.GetManager( 'services' ).GetService( HC.LOCAL_BOORU_SERVICE_KEY )
+		
+		info = self._service.GetInfo()
+		
+		internal_ip = '127.0.0.1'
+		
+		internal_port = info[ 'port' ]
+		
+		url = 'http://' + internal_ip + ':' + str( internal_port ) + '/gallery?share_key=' + self._share_key.encode( 'hex' )
+		
+		HC.pubsub.pub( 'clipboard', 'text', url )
+		
+	
+	def GetInfo( self ):
+		
+		name = self._name.GetValue()
+		
+		text = self._text.GetValue()
+		
+		timeout = self._timeout_number.GetValue()
+		
+		if timeout is not None: timeout = timeout * self._timeout_multiplier.GetChoice() + HC.GetNow()
+		
+		return ( self._share_key, name, text, timeout, self._hashes )
+		
+	
 class DialogInputLocalFiles( Dialog ):
     
     def __init__( self, parent, paths = [] ):
@@ -2873,334 +2873,334 @@ class DialogInputLocalFiles( Dialog ):
         
     
 class DialogInputMessageSystemPredicate( Dialog ):
-    
-    def __init__( self, parent, predicate_type ):
-        
-        def Age():
-            
-            def InitialiseControls():
-                
-                self._sign = wx.Choice( self, choices=[ '<', u'\u2248', '>' ] )
-                
-                self._years = wx.SpinCtrl( self, max = 30 )
-                self._months = wx.SpinCtrl( self, max = 60 )
-                self._days = wx.SpinCtrl( self, max = 90 )
-                
-                self._ok = wx.Button( self, label = 'Ok' )
-                self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
-                self._ok.SetForegroundColour( ( 0, 128, 0 ) )
-                
-            
-            def PopulateControls():
-                
-                self._sign.SetSelection( 0 )
-                
-                self._years.SetValue( 0 )
-                self._months.SetValue( 0 )
-                self._days.SetValue( 7 )
-                
-            
-            def ArrangeControls():
-                
-                hbox = wx.BoxSizer( wx.HORIZONTAL )
-                
-                hbox.AddF( wx.StaticText( self, label = 'system:age' ), FLAGS_MIXED )
-                hbox.AddF( self._sign, FLAGS_MIXED )
-                hbox.AddF( self._years, FLAGS_MIXED )
-                hbox.AddF( wx.StaticText( self, label = 'years' ), FLAGS_MIXED )
-                hbox.AddF( self._months, FLAGS_MIXED )
-                hbox.AddF( wx.StaticText( self, label = 'months' ), FLAGS_MIXED )
-                hbox.AddF( self._days, FLAGS_MIXED )
-                hbox.AddF( wx.StaticText( self, label = 'days' ), FLAGS_MIXED )
-                hbox.AddF( self._ok, FLAGS_MIXED )
-                
-                self.SetSizer( hbox )
-                
-            
-            Dialog.__init__( self, parent, 'enter age predicate' )
-            
-            InitialiseControls()
-            
-            ArrangeControls()
-        
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-            wx.CallAfter( self._ok.SetFocus )
-            
-        
-        def From():
-            
-            def InitialiseControls():
-                
-                contact_names = HC.app.Read( 'contact_names' )
-                
-                self._contact = wx.Choice( self, choices=contact_names )
-                
-                self._ok = wx.Button( self, label = 'Ok' )
-                self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
-                self._ok.SetForegroundColour( ( 0, 128, 0 ) )
-                
-            
-            def PopulateControls():
-                
-                self._contact.SetSelection( 0 )
-                
-            
-            def ArrangeControls():
-                
-                hbox = wx.BoxSizer( wx.HORIZONTAL )
-                
-                hbox.AddF( wx.StaticText( self, label = 'system:from' ), FLAGS_MIXED )
-                hbox.AddF( self._contact, FLAGS_MIXED )
-                hbox.AddF( self._ok, FLAGS_MIXED )
-                
-                self.SetSizer( hbox )
-                
-            
-            Dialog.__init__( self, parent, 'enter from predicate' )
-            
-            InitialiseControls()
-            
-            ArrangeControls()
-        
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-            wx.CallAfter( self._ok.SetFocus )
-            
-        
-        def StartedBy():
-            
-            def InitialiseControls():
-                
-                contact_names = HC.app.Read( 'contact_names' )
-                
-                self._contact = wx.Choice( self, choices = contact_names )
-                
-                self._ok = wx.Button( self, label = 'Ok' )
-                self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
-                self._ok.SetForegroundColour( ( 0, 128, 0 ) )
-                
-            
-            def PopulateControls():
-                
-                self._contact.SetSelection( 0 )
-                
-            
-            def ArrangeControls():
-                
-                hbox = wx.BoxSizer( wx.HORIZONTAL )
-                
-                hbox.AddF( wx.StaticText( self, label = 'system:started_by' ), FLAGS_MIXED )
-                hbox.AddF( self._contact, FLAGS_MIXED )
-                hbox.AddF( self._ok, FLAGS_MIXED )
-                
-                self.SetSizer( hbox )
-                
-            
-            Dialog.__init__( self, parent, 'enter started by predicate' )
-            
-            InitialiseControls()
-            
-            ArrangeControls()
-        
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-            wx.CallAfter( self._ok.SetFocus )
-            
-        
-        def To():
-            
-            def InitialiseControls():
-                
-                contact_names = [ name for name in HC.app.Read( 'contact_names' ) if name != 'Anonymous' ]
-                
-                self._contact = wx.Choice( self, choices = contact_names )
-                
-                self._ok = wx.Button( self, label = 'Ok' )
-                self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
-                self._ok.SetForegroundColour( ( 0, 128, 0 ) )
-                
-            
-            def PopulateControls():
-                
-                self._contact.SetSelection( 0 )
-                
-            
-            def ArrangeControls():
-                
-                hbox = wx.BoxSizer( wx.HORIZONTAL )
-                
-                hbox.AddF( wx.StaticText( self, label = 'system:to' ), FLAGS_MIXED )
-                hbox.AddF( self._contact, FLAGS_MIXED )
-                hbox.AddF( self._ok, FLAGS_MIXED )
-                
-                self.SetSizer( hbox )
-                
-            
-            Dialog.__init__( self, parent, 'enter to predicate' )
-            
-            InitialiseControls()
-            
-            ArrangeControls()
-        
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-            wx.CallAfter( self._ok.SetFocus )
-            
-        
-        def NumAttachments():
-            
-            def InitialiseControls():
-                
-                self._sign = wx.Choice( self, choices=[ '<', '=', '>' ] )
-                
-                self._num_attachments = wx.SpinCtrl( self, max = 2000 )
-                
-                self._ok = wx.Button( self, label = 'Ok' )
-                self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
-                self._ok.SetForegroundColour( ( 0, 128, 0 ) )
-                
-            
-            def PopulateControls():
-                
-                self._sign.SetSelection( 0 )
-                
-                self._num_attachments.SetValue( 4 )
-                
-            
-            def ArrangeControls():
-                
-                hbox = wx.BoxSizer( wx.HORIZONTAL )
-                
-                hbox.AddF( wx.StaticText( self, label = 'system:numattachments' ), FLAGS_MIXED )
-                hbox.AddF( self._sign, FLAGS_MIXED )
-                hbox.AddF( self._num_attachments, FLAGS_MIXED )
-                hbox.AddF( self._ok, FLAGS_MIXED )
-                
-                self.SetSizer( hbox )
-                
-            
-            Dialog.__init__( self, parent, 'enter number of attachments predicate' )
-            
-            InitialiseControls()
-            
-            PopulateControls()
-            
-            ArrangeControls()
-        
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-            wx.CallAfter( self._ok.SetFocus )
-            
-        
-        self._type = predicate_type
-        
-        if self._type == 'system:age': Age()
-        elif self._type == 'system:started_by': StartedBy()
-        elif self._type == 'system:from': From()
-        elif self._type == 'system:to': To()
-        elif self._type == 'system:numattachments': NumAttachments()
-        
-        self._hidden_cancel = wx.Button( self, id = wx.ID_CANCEL, size = ( 0, 0 ) )
-        
-    
-    def EventOK( self, event ): self.EndModal( wx.ID_OK )
-    
-    def GetString( self ):
-        
-        if self._type == 'system:age': return 'system:age' + self._sign.GetStringSelection() + HC.u( self._years.GetValue() ) + 'y' + HC.u( self._months.GetValue() ) + 'm' + HC.u( self._days.GetValue() ) + 'd'
-        elif self._type == 'system:started_by': return 'system:started_by=' + self._contact.GetStringSelection()
-        elif self._type == 'system:from': return 'system:from=' + self._contact.GetStringSelection()
-        elif self._type == 'system:to': return 'system:to=' + self._contact.GetStringSelection()
-        elif self._type == 'system:numattachments': return 'system:numattachments' + self._sign.GetStringSelection() + HC.u( self._num_attachments.GetValue() )
-        
-    
+	
+	def __init__( self, parent, predicate_type ):
+		
+		def Age():
+			
+			def InitialiseControls():
+				
+				self._sign = wx.Choice( self, choices=[ '<', u'\u2248', '>' ] )
+				
+				self._years = wx.SpinCtrl( self, max = 30 )
+				self._months = wx.SpinCtrl( self, max = 60 )
+				self._days = wx.SpinCtrl( self, max = 90 )
+				
+				self._ok = wx.Button( self, label = 'Ok' )
+				self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
+				self._ok.SetForegroundColour( ( 0, 128, 0 ) )
+				
+			
+			def PopulateControls():
+				
+				self._sign.SetSelection( 0 )
+				
+				self._years.SetValue( 0 )
+				self._months.SetValue( 0 )
+				self._days.SetValue( 7 )
+				
+			
+			def ArrangeControls():
+				
+				hbox = wx.BoxSizer( wx.HORIZONTAL )
+				
+				hbox.AddF( wx.StaticText( self, label = 'system:age' ), FLAGS_MIXED )
+				hbox.AddF( self._sign, FLAGS_MIXED )
+				hbox.AddF( self._years, FLAGS_MIXED )
+				hbox.AddF( wx.StaticText( self, label = 'years' ), FLAGS_MIXED )
+				hbox.AddF( self._months, FLAGS_MIXED )
+				hbox.AddF( wx.StaticText( self, label = 'months' ), FLAGS_MIXED )
+				hbox.AddF( self._days, FLAGS_MIXED )
+				hbox.AddF( wx.StaticText( self, label = 'days' ), FLAGS_MIXED )
+				hbox.AddF( self._ok, FLAGS_MIXED )
+				
+				self.SetSizer( hbox )
+				
+			
+			Dialog.__init__( self, parent, 'enter age predicate' )
+			
+			InitialiseControls()
+			
+			ArrangeControls()
+		
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+			wx.CallAfter( self._ok.SetFocus )
+			
+		
+		def From():
+			
+			def InitialiseControls():
+				
+				contact_names = HC.app.Read( 'contact_names' )
+				
+				self._contact = wx.Choice( self, choices=contact_names )
+				
+				self._ok = wx.Button( self, label = 'Ok' )
+				self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
+				self._ok.SetForegroundColour( ( 0, 128, 0 ) )
+				
+			
+			def PopulateControls():
+				
+				self._contact.SetSelection( 0 )
+				
+			
+			def ArrangeControls():
+				
+				hbox = wx.BoxSizer( wx.HORIZONTAL )
+				
+				hbox.AddF( wx.StaticText( self, label = 'system:from' ), FLAGS_MIXED )
+				hbox.AddF( self._contact, FLAGS_MIXED )
+				hbox.AddF( self._ok, FLAGS_MIXED )
+				
+				self.SetSizer( hbox )
+				
+			
+			Dialog.__init__( self, parent, 'enter from predicate' )
+			
+			InitialiseControls()
+			
+			ArrangeControls()
+		
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+			wx.CallAfter( self._ok.SetFocus )
+			
+		
+		def StartedBy():
+			
+			def InitialiseControls():
+				
+				contact_names = HC.app.Read( 'contact_names' )
+				
+				self._contact = wx.Choice( self, choices = contact_names )
+				
+				self._ok = wx.Button( self, label = 'Ok' )
+				self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
+				self._ok.SetForegroundColour( ( 0, 128, 0 ) )
+				
+			
+			def PopulateControls():
+				
+				self._contact.SetSelection( 0 )
+				
+			
+			def ArrangeControls():
+				
+				hbox = wx.BoxSizer( wx.HORIZONTAL )
+				
+				hbox.AddF( wx.StaticText( self, label = 'system:started_by' ), FLAGS_MIXED )
+				hbox.AddF( self._contact, FLAGS_MIXED )
+				hbox.AddF( self._ok, FLAGS_MIXED )
+				
+				self.SetSizer( hbox )
+				
+			
+			Dialog.__init__( self, parent, 'enter started by predicate' )
+			
+			InitialiseControls()
+			
+			ArrangeControls()
+		
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+			wx.CallAfter( self._ok.SetFocus )
+			
+		
+		def To():
+			
+			def InitialiseControls():
+				
+				contact_names = [ name for name in HC.app.Read( 'contact_names' ) if name != 'Anonymous' ]
+				
+				self._contact = wx.Choice( self, choices = contact_names )
+				
+				self._ok = wx.Button( self, label = 'Ok' )
+				self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
+				self._ok.SetForegroundColour( ( 0, 128, 0 ) )
+				
+			
+			def PopulateControls():
+				
+				self._contact.SetSelection( 0 )
+				
+			
+			def ArrangeControls():
+				
+				hbox = wx.BoxSizer( wx.HORIZONTAL )
+				
+				hbox.AddF( wx.StaticText( self, label = 'system:to' ), FLAGS_MIXED )
+				hbox.AddF( self._contact, FLAGS_MIXED )
+				hbox.AddF( self._ok, FLAGS_MIXED )
+				
+				self.SetSizer( hbox )
+				
+			
+			Dialog.__init__( self, parent, 'enter to predicate' )
+			
+			InitialiseControls()
+			
+			ArrangeControls()
+		
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+			wx.CallAfter( self._ok.SetFocus )
+			
+		
+		def NumAttachments():
+			
+			def InitialiseControls():
+				
+				self._sign = wx.Choice( self, choices=[ '<', '=', '>' ] )
+				
+				self._num_attachments = wx.SpinCtrl( self, max = 2000 )
+				
+				self._ok = wx.Button( self, label = 'Ok' )
+				self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
+				self._ok.SetForegroundColour( ( 0, 128, 0 ) )
+				
+			
+			def PopulateControls():
+				
+				self._sign.SetSelection( 0 )
+				
+				self._num_attachments.SetValue( 4 )
+				
+			
+			def ArrangeControls():
+				
+				hbox = wx.BoxSizer( wx.HORIZONTAL )
+				
+				hbox.AddF( wx.StaticText( self, label = 'system:numattachments' ), FLAGS_MIXED )
+				hbox.AddF( self._sign, FLAGS_MIXED )
+				hbox.AddF( self._num_attachments, FLAGS_MIXED )
+				hbox.AddF( self._ok, FLAGS_MIXED )
+				
+				self.SetSizer( hbox )
+				
+			
+			Dialog.__init__( self, parent, 'enter number of attachments predicate' )
+			
+			InitialiseControls()
+			
+			PopulateControls()
+			
+			ArrangeControls()
+		
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+			wx.CallAfter( self._ok.SetFocus )
+			
+		
+		self._type = predicate_type
+		
+		if self._type == 'system:age': Age()
+		elif self._type == 'system:started_by': StartedBy()
+		elif self._type == 'system:from': From()
+		elif self._type == 'system:to': To()
+		elif self._type == 'system:numattachments': NumAttachments()
+		
+		self._hidden_cancel = wx.Button( self, id = wx.ID_CANCEL, size = ( 0, 0 ) )
+		
+	
+	def EventOK( self, event ): self.EndModal( wx.ID_OK )
+	
+	def GetString( self ):
+		
+		if self._type == 'system:age': return 'system:age' + self._sign.GetStringSelection() + HC.u( self._years.GetValue() ) + 'y' + HC.u( self._months.GetValue() ) + 'm' + HC.u( self._days.GetValue() ) + 'd'
+		elif self._type == 'system:started_by': return 'system:started_by=' + self._contact.GetStringSelection()
+		elif self._type == 'system:from': return 'system:from=' + self._contact.GetStringSelection()
+		elif self._type == 'system:to': return 'system:to=' + self._contact.GetStringSelection()
+		elif self._type == 'system:numattachments': return 'system:numattachments' + self._sign.GetStringSelection() + HC.u( self._num_attachments.GetValue() )
+		
+	
 class DialogInputNamespaceRegex( Dialog ):
-    
-    def __init__( self, parent, namespace = '', regex = '' ):
-        
-        def InitialiseControls():
-            
-            self._namespace = wx.TextCtrl( self )
-            
-            self._regex = wx.TextCtrl( self )
-            
-            self._shortcuts = ClientGUICommon.RegexButton( self )
-            
-            self._regex_link = wx.HyperlinkCtrl( self, id = -1, label = 'a good regex introduction', url = 'http://www.aivosto.com/vbtips/regex.html' )
-            
-            self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
-            self._ok.SetForegroundColour( ( 0, 128, 0 ) )
-            
-            self._cancel = wx.Button( self, id = wx.ID_CANCEL, label = 'Cancel' )
-            self._cancel.SetForegroundColour( ( 128, 0, 0 ) )
-            
-        
-        def PopulateControls():
-            
-            self._namespace.SetValue( namespace )
-            self._regex.SetValue( regex )
-            
-        
-        def ArrangeControls():
-            
-            control_box = wx.BoxSizer( wx.HORIZONTAL )
-            
-            control_box.AddF( self._namespace, FLAGS_EXPAND_BOTH_WAYS )
-            control_box.AddF( wx.StaticText( self, label = ':' ), FLAGS_MIXED )
-            control_box.AddF( self._regex, FLAGS_EXPAND_BOTH_WAYS )
-            
-            b_box = wx.BoxSizer( wx.HORIZONTAL )
-            b_box.AddF( self._ok, FLAGS_MIXED )
-            b_box.AddF( self._cancel, FLAGS_MIXED )
-            
-            vbox = wx.BoxSizer( wx.VERTICAL )
-            
-            intro = 'Put the namespace (e.g. page) on the left.' + os.linesep + 'Put the regex (e.g. [1-9]+\d*(?=.{4}$)) on the right.' + os.linesep + 'All files will be tagged with "namespace:regex".'
-            
-            vbox.AddF( wx.StaticText( self, label = intro ), FLAGS_EXPAND_PERPENDICULAR )
-            vbox.AddF( control_box, FLAGS_EXPAND_SIZER_PERPENDICULAR )
-            vbox.AddF( self._shortcuts, FLAGS_LONE_BUTTON )
-            vbox.AddF( self._regex_link, FLAGS_LONE_BUTTON )
-            vbox.AddF( b_box, FLAGS_BUTTON_SIZER )
-            
-            self.SetSizer( vbox )
-            
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-        
-        Dialog.__init__( self, parent, 'configure quick namespace' )
-        
-        InitialiseControls()
-        
-        PopulateControls()
-        
-        ArrangeControls()
-        
-        wx.CallAfter( self._ok.SetFocus )
-        
-    
-    def GetInfo( self ):
-        
-        namespace = self._namespace.GetValue()
-        
-        regex = self._regex.GetValue()
-        
-        return ( namespace, regex )
-        
-    
+	
+	def __init__( self, parent, namespace = '', regex = '' ):
+		
+		def InitialiseControls():
+			
+			self._namespace = wx.TextCtrl( self )
+			
+			self._regex = wx.TextCtrl( self )
+			
+			self._shortcuts = ClientGUICommon.RegexButton( self )
+			
+			self._regex_link = wx.HyperlinkCtrl( self, id = -1, label = 'a good regex introduction', url = 'http://www.aivosto.com/vbtips/regex.html' )
+			
+			self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
+			self._ok.SetForegroundColour( ( 0, 128, 0 ) )
+			
+			self._cancel = wx.Button( self, id = wx.ID_CANCEL, label = 'Cancel' )
+			self._cancel.SetForegroundColour( ( 128, 0, 0 ) )
+			
+		
+		def PopulateControls():
+			
+			self._namespace.SetValue( namespace )
+			self._regex.SetValue( regex )
+			
+		
+		def ArrangeControls():
+			
+			control_box = wx.BoxSizer( wx.HORIZONTAL )
+			
+			control_box.AddF( self._namespace, FLAGS_EXPAND_BOTH_WAYS )
+			control_box.AddF( wx.StaticText( self, label = ':' ), FLAGS_MIXED )
+			control_box.AddF( self._regex, FLAGS_EXPAND_BOTH_WAYS )
+			
+			b_box = wx.BoxSizer( wx.HORIZONTAL )
+			b_box.AddF( self._ok, FLAGS_MIXED )
+			b_box.AddF( self._cancel, FLAGS_MIXED )
+			
+			vbox = wx.BoxSizer( wx.VERTICAL )
+			
+			intro = 'Put the namespace (e.g. page) on the left.' + os.linesep + 'Put the regex (e.g. [1-9]+\d*(?=.{4}$)) on the right.' + os.linesep + 'All files will be tagged with "namespace:regex".'
+			
+			vbox.AddF( wx.StaticText( self, label = intro ), FLAGS_EXPAND_PERPENDICULAR )
+			vbox.AddF( control_box, FLAGS_EXPAND_SIZER_PERPENDICULAR )
+			vbox.AddF( self._shortcuts, FLAGS_LONE_BUTTON )
+			vbox.AddF( self._regex_link, FLAGS_LONE_BUTTON )
+			vbox.AddF( b_box, FLAGS_BUTTON_SIZER )
+			
+			self.SetSizer( vbox )
+			
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+		
+		Dialog.__init__( self, parent, 'configure quick namespace' )
+		
+		InitialiseControls()
+		
+		PopulateControls()
+		
+		ArrangeControls()
+		
+		wx.CallAfter( self._ok.SetFocus )
+		
+	
+	def GetInfo( self ):
+		
+		namespace = self._namespace.GetValue()
+		
+		regex = self._regex.GetValue()
+		
+		return ( namespace, regex )
+		
+	
 class DialogInputNewAccountType( Dialog ):
     
     def __init__( self, parent, account_type = None ):
@@ -3341,807 +3341,807 @@ class DialogInputNewAccountType( Dialog ):
         
     
 class DialogInputNewFormField( Dialog ):
-    
-    def __init__( self, parent, form_field = None ):
-        
-        def InitialiseControls():
-            
-            self._name = wx.TextCtrl( self )
-            
-            self._type = wx.Choice( self )
-            
-            self._default = wx.TextCtrl( self )
-            
-            self._editable = wx.CheckBox( self )
-            
-            self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
-            self._ok.SetForegroundColour( ( 0, 128, 0 ) )
-            
-            self._cancel = wx.Button( self, id = wx.ID_CANCEL, label = 'Cancel' )   
-            self._cancel.SetForegroundColour( ( 128, 0, 0 ) )
-            
-        
-        def PopulateControls():
-            
-            self._name.SetValue( name )
-            
-            for temp_type in CC.FIELDS: self._type.Append( CC.field_string_lookup[ temp_type ], temp_type )
-            self._type.Select( field_type )
-            
-            self._default.SetValue( default )
-            
-            self._editable.SetValue( editable )
-            
-        
-        def ArrangeControls():
-            
-            gridbox = wx.FlexGridSizer( 0, 2 )
-            
-            gridbox.AddGrowableCol( 1, 1 )
-            
-            gridbox.AddF( wx.StaticText( self, label = 'name' ), FLAGS_MIXED )
-            gridbox.AddF( self._name, FLAGS_EXPAND_BOTH_WAYS )
-            
-            gridbox.AddF( wx.StaticText( self, label = 'type' ), FLAGS_MIXED )
-            gridbox.AddF( self._type, FLAGS_EXPAND_BOTH_WAYS )
-            
-            gridbox.AddF( wx.StaticText( self, label = 'default' ), FLAGS_MIXED )
-            gridbox.AddF( self._default, FLAGS_EXPAND_BOTH_WAYS )
-            
-            gridbox.AddF( wx.StaticText( self, label = 'editable' ), FLAGS_MIXED )
-            gridbox.AddF( self._editable, FLAGS_EXPAND_BOTH_WAYS )
-            
-            b_box = wx.BoxSizer( wx.HORIZONTAL )
-            
-            b_box.AddF( self._ok, FLAGS_MIXED )
-            b_box.AddF( self._cancel, FLAGS_MIXED )
-            
-            vbox = wx.BoxSizer( wx.VERTICAL )
-            
-            vbox.AddF( gridbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
-            vbox.AddF( b_box, FLAGS_BUTTON_SIZER )
-            
-            self.SetSizer( vbox )
-            
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-        
-        Dialog.__init__( self, parent, 'configure form field' )
-        
-        if form_field is None: ( name, field_type, default, editable ) = ( '', CC.FIELD_TEXT, '', True )
-        else: ( name, field_type, default, editable ) = form_field
-        
-        InitialiseControls()
-        
-        PopulateControls()
-        
-        ArrangeControls()
-        
-        wx.CallAfter( self._ok.SetFocus )
-        
-    
-    def GetFormField( self ):
-        
-        name = self._name.GetValue()
-        
-        field_type = self._type.GetClientData( self._type.GetSelection() )
-        
-        default = self._default.GetValue()
-        
-        editable = self._editable.GetValue()
-        
-        return ( name, field_type, default, editable )
-        
-    
+	
+	def __init__( self, parent, form_field = None ):
+		
+		def InitialiseControls():
+			
+			self._name = wx.TextCtrl( self )
+			
+			self._type = wx.Choice( self )
+			
+			self._default = wx.TextCtrl( self )
+			
+			self._editable = wx.CheckBox( self )
+			
+			self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
+			self._ok.SetForegroundColour( ( 0, 128, 0 ) )
+			
+			self._cancel = wx.Button( self, id = wx.ID_CANCEL, label = 'Cancel' )   
+			self._cancel.SetForegroundColour( ( 128, 0, 0 ) )
+			
+		
+		def PopulateControls():
+			
+			self._name.SetValue( name )
+			
+			for temp_type in CC.FIELDS: self._type.Append( CC.field_string_lookup[ temp_type ], temp_type )
+			self._type.Select( field_type )
+			
+			self._default.SetValue( default )
+			
+			self._editable.SetValue( editable )
+			
+		
+		def ArrangeControls():
+			
+			gridbox = wx.FlexGridSizer( 0, 2 )
+			
+			gridbox.AddGrowableCol( 1, 1 )
+			
+			gridbox.AddF( wx.StaticText( self, label = 'name' ), FLAGS_MIXED )
+			gridbox.AddF( self._name, FLAGS_EXPAND_BOTH_WAYS )
+			
+			gridbox.AddF( wx.StaticText( self, label = 'type' ), FLAGS_MIXED )
+			gridbox.AddF( self._type, FLAGS_EXPAND_BOTH_WAYS )
+			
+			gridbox.AddF( wx.StaticText( self, label = 'default' ), FLAGS_MIXED )
+			gridbox.AddF( self._default, FLAGS_EXPAND_BOTH_WAYS )
+			
+			gridbox.AddF( wx.StaticText( self, label = 'editable' ), FLAGS_MIXED )
+			gridbox.AddF( self._editable, FLAGS_EXPAND_BOTH_WAYS )
+			
+			b_box = wx.BoxSizer( wx.HORIZONTAL )
+			
+			b_box.AddF( self._ok, FLAGS_MIXED )
+			b_box.AddF( self._cancel, FLAGS_MIXED )
+			
+			vbox = wx.BoxSizer( wx.VERTICAL )
+			
+			vbox.AddF( gridbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
+			vbox.AddF( b_box, FLAGS_BUTTON_SIZER )
+			
+			self.SetSizer( vbox )
+			
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+		
+		Dialog.__init__( self, parent, 'configure form field' )
+		
+		if form_field is None: ( name, field_type, default, editable ) = ( '', CC.FIELD_TEXT, '', True )
+		else: ( name, field_type, default, editable ) = form_field
+		
+		InitialiseControls()
+		
+		PopulateControls()
+		
+		ArrangeControls()
+		
+		wx.CallAfter( self._ok.SetFocus )
+		
+	
+	def GetFormField( self ):
+		
+		name = self._name.GetValue()
+		
+		field_type = self._type.GetClientData( self._type.GetSelection() )
+		
+		default = self._default.GetValue()
+		
+		editable = self._editable.GetValue()
+		
+		return ( name, field_type, default, editable )
+		
+	
 class DialogInputShortcut( Dialog ):
-    
-    def __init__( self, parent, modifier = wx.ACCEL_NORMAL, key = wx.WXK_F7, action = 'new_page' ):
-        
-        self._action = action
-        
-        def InitialiseControls():
-            
-            self._shortcut = ClientGUICommon.Shortcut( self, modifier, key )
-            
-            self._actions = wx.Choice( self, choices = [ 'archive', 'inbox', 'close_page', 'filter', 'fullscreen_switch', 'ratings_filter', 'frame_back', 'frame_next', 'manage_ratings', 'manage_tags', 'new_page', 'refresh', 'set_search_focus', 'show_hide_splitters', 'synchronised_wait_switch', 'previous', 'next', 'first', 'last', 'undo', 'redo', 'open_externally' ] )
-            
-            self._ok = wx.Button( self, id= wx.ID_OK, label = 'Ok' )
-            self._ok.SetForegroundColour( ( 0, 128, 0 ) )
-            
-            self._cancel = wx.Button( self, id = wx.ID_CANCEL, label = 'Cancel' )
-            self._cancel.SetForegroundColour( ( 128, 0, 0 ) )
-            
-    
-        def PopulateControls():
-            
-            self._actions.SetSelection( self._actions.FindString( action ) )
-            
-        
-        def ArrangeControls():
-            
-            hbox = wx.BoxSizer( wx.HORIZONTAL )
-            
-            hbox.AddF( self._shortcut, FLAGS_MIXED )
-            hbox.AddF( self._actions, FLAGS_EXPAND_PERPENDICULAR )
-            
-            b_box = wx.BoxSizer( wx.HORIZONTAL )
-            b_box.AddF( self._ok, FLAGS_MIXED )
-            b_box.AddF( self._cancel, FLAGS_MIXED )
-            
-            vbox = wx.BoxSizer( wx.VERTICAL )
-            
-            vbox.AddF( hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
-            vbox.AddF( b_box, FLAGS_BUTTON_SIZER )
-            
-            self.SetSizer( vbox )
-            
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-        
-        Dialog.__init__( self, parent, 'configure shortcut' )
-        
-        InitialiseControls()
-        
-        PopulateControls()
-        
-        ArrangeControls()
-        
-        wx.CallAfter( self._ok.SetFocus )
-        
-    
-    def GetInfo( self ):
-        
-        ( modifier, key ) = self._shortcut.GetValue()
-        
-        return ( modifier, key, self._actions.GetStringSelection() )
-        
-    
+	
+	def __init__( self, parent, modifier = wx.ACCEL_NORMAL, key = wx.WXK_F7, action = 'new_page' ):
+		
+		self._action = action
+		
+		def InitialiseControls():
+			
+			self._shortcut = ClientGUICommon.Shortcut( self, modifier, key )
+			
+			self._actions = wx.Choice( self, choices = [ 'archive', 'inbox', 'close_page', 'filter', 'fullscreen_switch', 'ratings_filter', 'frame_back', 'frame_next', 'manage_ratings', 'manage_tags', 'new_page', 'refresh', 'set_search_focus', 'show_hide_splitters', 'synchronised_wait_switch', 'previous', 'next', 'first', 'last', 'undo', 'redo', 'open_externally' ] )
+			
+			self._ok = wx.Button( self, id= wx.ID_OK, label = 'Ok' )
+			self._ok.SetForegroundColour( ( 0, 128, 0 ) )
+			
+			self._cancel = wx.Button( self, id = wx.ID_CANCEL, label = 'Cancel' )
+			self._cancel.SetForegroundColour( ( 128, 0, 0 ) )
+			
+	
+		def PopulateControls():
+			
+			self._actions.SetSelection( self._actions.FindString( action ) )
+			
+		
+		def ArrangeControls():
+			
+			hbox = wx.BoxSizer( wx.HORIZONTAL )
+			
+			hbox.AddF( self._shortcut, FLAGS_MIXED )
+			hbox.AddF( self._actions, FLAGS_EXPAND_PERPENDICULAR )
+			
+			b_box = wx.BoxSizer( wx.HORIZONTAL )
+			b_box.AddF( self._ok, FLAGS_MIXED )
+			b_box.AddF( self._cancel, FLAGS_MIXED )
+			
+			vbox = wx.BoxSizer( wx.VERTICAL )
+			
+			vbox.AddF( hbox, FLAGS_EXPAND_SIZER_PERPENDICULAR )
+			vbox.AddF( b_box, FLAGS_BUTTON_SIZER )
+			
+			self.SetSizer( vbox )
+			
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+		
+		Dialog.__init__( self, parent, 'configure shortcut' )
+		
+		InitialiseControls()
+		
+		PopulateControls()
+		
+		ArrangeControls()
+		
+		wx.CallAfter( self._ok.SetFocus )
+		
+	
+	def GetInfo( self ):
+		
+		( modifier, key ) = self._shortcut.GetValue()
+		
+		return ( modifier, key, self._actions.GetStringSelection() )
+		
+	
 class DialogInputUPnPMapping( Dialog ):
-    
-    def __init__( self, parent, external_port, protocol_type, internal_port, description, duration ):
-        
-        def InitialiseControls():
-            
-            self._external_port = wx.SpinCtrl( self, min = 0, max = 65535 )
-            
-            self._protocol_type = ClientGUICommon.BetterChoice( self )
-            self._protocol_type.Append( 'TCP', 'TCP' )
-            self._protocol_type.Append( 'UDP', 'UDP' )
-            
-            self._internal_port = wx.SpinCtrl( self, min = 0, max = 65535 )
-            self._description = wx.TextCtrl( self )
-            self._duration = wx.SpinCtrl( self, min = 0, max = 86400 )
-            
-            self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
-            self._ok.SetForegroundColour( ( 0, 128, 0 ) )
-            
-            self._cancel = wx.Button( self, id = wx.ID_CANCEL, label = 'Cancel' )
-            self._cancel.SetForegroundColour( ( 128, 0, 0 ) )
-            
-    
-        def PopulateControls():
-            
-            self._external_port.SetValue( external_port )
-            
-            if protocol_type == 'TCP': self._protocol_type.Select( 0 )
-            elif protocol_type == 'UDP': self._protocol_type.Select( 1 )
-            
-            self._internal_port.SetValue( internal_port )
-            self._description.SetValue( description )
-            self._duration.SetValue( duration )
-            
-        
-        def ArrangeControls():
-            
-            gridbox = wx.FlexGridSizer( 0, 2 )
-            
-            gridbox.AddGrowableCol( 1, 1 )
-            
-            gridbox.AddF( wx.StaticText( self, label = 'external port' ), FLAGS_MIXED )
-            gridbox.AddF( self._external_port, FLAGS_EXPAND_BOTH_WAYS )
-            
-            gridbox.AddF( wx.StaticText( self, label = 'protocol type' ), FLAGS_MIXED )
-            gridbox.AddF( self._protocol_type, FLAGS_EXPAND_BOTH_WAYS )
-            
-            gridbox.AddF( wx.StaticText( self, label = 'internal port' ), FLAGS_MIXED )
-            gridbox.AddF( self._internal_port, FLAGS_EXPAND_BOTH_WAYS )
-            
-            gridbox.AddF( wx.StaticText( self, label = 'description' ), FLAGS_MIXED )
-            gridbox.AddF( self._description, FLAGS_EXPAND_BOTH_WAYS )
-            
-            gridbox.AddF( wx.StaticText( self, label = 'duration (0 = indefinite)' ), FLAGS_MIXED )
-            gridbox.AddF( self._duration, FLAGS_EXPAND_BOTH_WAYS )
-            
-            b_box = wx.BoxSizer( wx.HORIZONTAL )
-            b_box.AddF( self._ok, FLAGS_MIXED )
-            b_box.AddF( self._cancel, FLAGS_MIXED )
-            
-            vbox = wx.BoxSizer( wx.VERTICAL )
-            
-            vbox.AddF( gridbox, FLAGS_EXPAND_SIZER_BOTH_WAYS )
-            vbox.AddF( b_box, FLAGS_BUTTON_SIZER )
-            
-            self.SetSizer( vbox )
-            
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-        
-        Dialog.__init__( self, parent, 'configure upnp mapping' )
-        
-        InitialiseControls()
-        
-        PopulateControls()
-        
-        ArrangeControls()
-        
-        wx.CallAfter( self._ok.SetFocus )
-        
-    
-    def GetInfo( self ):
-        
-        external_port = self._external_port.GetValue()
-        protocol_type = self._protocol_type.GetChoice()
-        internal_port = self._internal_port.GetValue()
-        description = self._description.GetValue()
-        duration = self._duration.GetValue()
-        
-        return ( external_port, protocol_type, internal_port, description, duration )
-        
-    
+	
+	def __init__( self, parent, external_port, protocol_type, internal_port, description, duration ):
+		
+		def InitialiseControls():
+			
+			self._external_port = wx.SpinCtrl( self, min = 0, max = 65535 )
+			
+			self._protocol_type = ClientGUICommon.BetterChoice( self )
+			self._protocol_type.Append( 'TCP', 'TCP' )
+			self._protocol_type.Append( 'UDP', 'UDP' )
+			
+			self._internal_port = wx.SpinCtrl( self, min = 0, max = 65535 )
+			self._description = wx.TextCtrl( self )
+			self._duration = wx.SpinCtrl( self, min = 0, max = 86400 )
+			
+			self._ok = wx.Button( self, id = wx.ID_OK, label = 'Ok' )
+			self._ok.SetForegroundColour( ( 0, 128, 0 ) )
+			
+			self._cancel = wx.Button( self, id = wx.ID_CANCEL, label = 'Cancel' )
+			self._cancel.SetForegroundColour( ( 128, 0, 0 ) )
+			
+	
+		def PopulateControls():
+			
+			self._external_port.SetValue( external_port )
+			
+			if protocol_type == 'TCP': self._protocol_type.Select( 0 )
+			elif protocol_type == 'UDP': self._protocol_type.Select( 1 )
+			
+			self._internal_port.SetValue( internal_port )
+			self._description.SetValue( description )
+			self._duration.SetValue( duration )
+			
+		
+		def ArrangeControls():
+			
+			gridbox = wx.FlexGridSizer( 0, 2 )
+			
+			gridbox.AddGrowableCol( 1, 1 )
+			
+			gridbox.AddF( wx.StaticText( self, label = 'external port' ), FLAGS_MIXED )
+			gridbox.AddF( self._external_port, FLAGS_EXPAND_BOTH_WAYS )
+			
+			gridbox.AddF( wx.StaticText( self, label = 'protocol type' ), FLAGS_MIXED )
+			gridbox.AddF( self._protocol_type, FLAGS_EXPAND_BOTH_WAYS )
+			
+			gridbox.AddF( wx.StaticText( self, label = 'internal port' ), FLAGS_MIXED )
+			gridbox.AddF( self._internal_port, FLAGS_EXPAND_BOTH_WAYS )
+			
+			gridbox.AddF( wx.StaticText( self, label = 'description' ), FLAGS_MIXED )
+			gridbox.AddF( self._description, FLAGS_EXPAND_BOTH_WAYS )
+			
+			gridbox.AddF( wx.StaticText( self, label = 'duration (0 = indefinite)' ), FLAGS_MIXED )
+			gridbox.AddF( self._duration, FLAGS_EXPAND_BOTH_WAYS )
+			
+			b_box = wx.BoxSizer( wx.HORIZONTAL )
+			b_box.AddF( self._ok, FLAGS_MIXED )
+			b_box.AddF( self._cancel, FLAGS_MIXED )
+			
+			vbox = wx.BoxSizer( wx.VERTICAL )
+			
+			vbox.AddF( gridbox, FLAGS_EXPAND_SIZER_BOTH_WAYS )
+			vbox.AddF( b_box, FLAGS_BUTTON_SIZER )
+			
+			self.SetSizer( vbox )
+			
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+		
+		Dialog.__init__( self, parent, 'configure upnp mapping' )
+		
+		InitialiseControls()
+		
+		PopulateControls()
+		
+		ArrangeControls()
+		
+		wx.CallAfter( self._ok.SetFocus )
+		
+	
+	def GetInfo( self ):
+		
+		external_port = self._external_port.GetValue()
+		protocol_type = self._protocol_type.GetChoice()
+		internal_port = self._internal_port.GetValue()
+		description = self._description.GetValue()
+		duration = self._duration.GetValue()
+		
+		return ( external_port, protocol_type, internal_port, description, duration )
+		
+	
 class DialogModifyAccounts( Dialog ):
-    
-    def __init__( self, parent, service_key, subject_identifiers ):
-        
-        def InitialiseControls():
-            
-            self._account_info_panel = ClientGUICommon.StaticBox( self, 'account info' )
-            
-            self._subject_text = wx.StaticText( self._account_info_panel )
-            
-            #
-            
-            self._account_types_panel = ClientGUICommon.StaticBox( self, 'account types' )
-            
-            self._account_types = wx.Choice( self._account_types_panel )
-            
-            self._account_types_ok = wx.Button( self._account_types_panel, label = 'Ok' )
-            self._account_types_ok.Bind( wx.EVT_BUTTON, self.EventChangeAccountType )
-            
-            #
-            
-            self._expiration_panel = ClientGUICommon.StaticBox( self, 'change expiration' )
-            
-            self._add_to_expires = wx.Choice( self._expiration_panel )
-            
-            self._add_to_expires_ok = wx.Button( self._expiration_panel, label = 'Ok' )
-            self._add_to_expires_ok.Bind( wx.EVT_BUTTON, self.EventAddToExpires )
-            
-            self._set_expires = wx.Choice( self._expiration_panel )
-            
-            self._set_expires_ok = wx.Button( self._expiration_panel, label = 'Ok' )
-            self._set_expires_ok.Bind( wx.EVT_BUTTON, self.EventSetExpires )
-            
-            #
-            
-            self._ban_panel = ClientGUICommon.StaticBox( self, 'bans' )
-            
-            self._ban = wx.Button( self._ban_panel, label = 'ban user' )
-            self._ban.Bind( wx.EVT_BUTTON, self.EventBan )        
-            self._ban.SetBackgroundColour( ( 255, 0, 0 ) )
-            self._ban.SetForegroundColour( ( 255, 255, 0 ) )
-            
-            self._superban = wx.Button( self._ban_panel, label = 'ban user and delete every contribution they have ever made' )
-            self._superban.Bind( wx.EVT_BUTTON, self.EventSuperban )        
-            self._superban.SetBackgroundColour( ( 255, 0, 0 ) )
-            self._superban.SetForegroundColour( ( 255, 255, 0 ) )
-            
-            self._exit = wx.Button( self, id = wx.ID_CANCEL, label = 'Exit' )
-            
-    
-        def PopulateControls():
-            
-            if len( self._subject_identifiers ) == 1:
-                
-                ( subject_identifier, ) = self._subject_identifiers
-                
-                response = self._service.Request( HC.GET, 'account_info', { 'subject_identifier' : subject_identifier } )
-                
-                subject_string = HC.u( response[ 'account_info' ] )
-                
-            else: subject_string = 'modifying ' + HC.ConvertIntToPrettyString( len( self._subject_identifiers ) ) + ' accounts'
-            
-            self._subject_text.SetLabel( subject_string )
-            
-            #
-            
-            response = self._service.Request( HC.GET, 'account_types' )
-            
-            account_types = response[ 'account_types' ]
-            
-            for account_type in account_types: self._account_types.Append( account_type.ConvertToString(), account_type )
-            
-            self._account_types.SetSelection( 0 )
-            
-            #
-            
-            for ( string, value ) in HC.lifetimes:
-                
-                if value is not None: self._add_to_expires.Append( string, value ) # don't want 'add no limit'
-                
-            
-            self._add_to_expires.SetSelection( 1 ) # three months
-            
-            for ( string, value ) in HC.lifetimes: self._set_expires.Append( string, value )
-            self._set_expires.SetSelection( 1 ) # three months
-            
-            #
-            
-            if not self._service.GetInfo( 'account' ).HasPermission( HC.GENERAL_ADMIN ):
-                
-                self._account_types_ok.Disable()
-                self._add_to_expires_ok.Disable()
-                self._set_expires_ok.Disable()
-                
-            
-        
-        def ArrangeControls():
-            
-            self._account_info_panel.AddF( self._subject_text, FLAGS_EXPAND_PERPENDICULAR )
-            
-            account_types_hbox = wx.BoxSizer( wx.HORIZONTAL )
-            
-            account_types_hbox.AddF( self._account_types, FLAGS_MIXED )
-            account_types_hbox.AddF( self._account_types_ok, FLAGS_MIXED )
-            
-            self._account_types_panel.AddF( account_types_hbox, FLAGS_EXPAND_PERPENDICULAR )
-            
-            add_to_expires_box = wx.BoxSizer( wx.HORIZONTAL )
-            
-            add_to_expires_box.AddF( wx.StaticText( self._expiration_panel, label = 'add to expires: ' ), FLAGS_MIXED )
-            add_to_expires_box.AddF( self._add_to_expires, FLAGS_EXPAND_BOTH_WAYS )
-            add_to_expires_box.AddF( self._add_to_expires_ok, FLAGS_MIXED )
-            
-            set_expires_box = wx.BoxSizer( wx.HORIZONTAL )
-            
-            set_expires_box.AddF( wx.StaticText( self._expiration_panel, label = 'set expires to: ' ), FLAGS_MIXED )
-            set_expires_box.AddF( self._set_expires, FLAGS_EXPAND_BOTH_WAYS )
-            set_expires_box.AddF( self._set_expires_ok, FLAGS_MIXED )
-            
-            self._expiration_panel.AddF( add_to_expires_box, FLAGS_EXPAND_PERPENDICULAR )
-            self._expiration_panel.AddF( set_expires_box, FLAGS_EXPAND_PERPENDICULAR )
-            
-            self._ban_panel.AddF( self._ban, FLAGS_EXPAND_PERPENDICULAR )
-            self._ban_panel.AddF( self._superban, FLAGS_EXPAND_PERPENDICULAR )
-            
-            vbox = wx.BoxSizer( wx.VERTICAL )
-            vbox.AddF( self._account_info_panel, FLAGS_EXPAND_PERPENDICULAR )
-            vbox.AddF( self._account_types_panel, FLAGS_EXPAND_PERPENDICULAR )
-            vbox.AddF( self._expiration_panel, FLAGS_EXPAND_PERPENDICULAR )
-            vbox.AddF( self._ban_panel, FLAGS_EXPAND_PERPENDICULAR )
-            vbox.AddF( self._exit, FLAGS_BUTTON_SIZER )
-            
-            self.SetSizer( vbox )
-            
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-        
-        Dialog.__init__( self, parent, 'modify account' )
-        
-        self._service = HC.app.GetManager( 'services' ).GetService( service_key )
-        self._subject_identifiers = list( subject_identifiers )
-        
-        InitialiseControls()
-        
-        PopulateControls()
-        
-        ArrangeControls()
-        
-        wx.CallAfter( self._exit.SetFocus )
-        
-    
-    def _DoModification( self, action, **kwargs ):
-        
-        request_args = kwargs
-        
-        request_args[ 'subject_identifiers' ] = self._subject_identifiers
-        request_args[ 'action' ] = action
-        
-        self._service.Request( HC.POST, 'account', request_args )
-        
-        if len( self._subject_identifiers ) == 1:
-            
-            ( subject_identifier, ) = self._subject_identifiers
-            
-            response = self._service.Request( HC.GET, 'account_info', { 'subject_identifier' : subject_identifier } )
-            
-            account_info = response[ 'account_info' ]
-            
-            self._subject_text.SetLabel( HC.u( account_info ) )
-            
-        
-        if len( self._subject_identifiers ) > 1: wx.MessageBox( 'Done!' )
-        
-    
-    def EventAddToExpires( self, event ): self._DoModification( HC.ADD_TO_EXPIRES, timespan = self._add_to_expires.GetClientData( self._add_to_expires.GetSelection() ) )
-    
-    def EventBan( self, event ):
-        
-        with DialogTextEntry( self, 'Enter reason for the ban.' ) as dlg:
-            
-            if dlg.ShowModal() == wx.ID_OK: self._DoModification( HC.BAN, reason = dlg.GetValue() )
-            
-        
-    
-    def EventChangeAccountType( self, event ): self._DoModification( HC.CHANGE_ACCOUNT_TYPE, title = self._account_types.GetClientData( self._account_types.GetSelection() ).GetTitle() )
-    
-    def EventSetExpires( self, event ):
-        
-        expires = self._set_expires.GetClientData( self._set_expires.GetSelection() )
-        
-        if expires is not None: expires += HC.GetNow()
-        
-        self._DoModification( HC.SET_EXPIRES, expires = expires )
-        
-    
-    def EventSuperban( self, event ):
-        
-        with DialogTextEntry( self, 'Enter reason for the superban.' ) as dlg:
-            
-            if dlg.ShowModal() == wx.ID_OK: self._DoModification( HC.SUPERBAN, reason = dlg.GetValue() )
-            
-        
-    
+	
+	def __init__( self, parent, service_key, subject_identifiers ):
+		
+		def InitialiseControls():
+			
+			self._account_info_panel = ClientGUICommon.StaticBox( self, 'account info' )
+			
+			self._subject_text = wx.StaticText( self._account_info_panel )
+			
+			#
+			
+			self._account_types_panel = ClientGUICommon.StaticBox( self, 'account types' )
+			
+			self._account_types = wx.Choice( self._account_types_panel )
+			
+			self._account_types_ok = wx.Button( self._account_types_panel, label = 'Ok' )
+			self._account_types_ok.Bind( wx.EVT_BUTTON, self.EventChangeAccountType )
+			
+			#
+			
+			self._expiration_panel = ClientGUICommon.StaticBox( self, 'change expiration' )
+			
+			self._add_to_expires = wx.Choice( self._expiration_panel )
+			
+			self._add_to_expires_ok = wx.Button( self._expiration_panel, label = 'Ok' )
+			self._add_to_expires_ok.Bind( wx.EVT_BUTTON, self.EventAddToExpires )
+			
+			self._set_expires = wx.Choice( self._expiration_panel )
+			
+			self._set_expires_ok = wx.Button( self._expiration_panel, label = 'Ok' )
+			self._set_expires_ok.Bind( wx.EVT_BUTTON, self.EventSetExpires )
+			
+			#
+			
+			self._ban_panel = ClientGUICommon.StaticBox( self, 'bans' )
+			
+			self._ban = wx.Button( self._ban_panel, label = 'ban user' )
+			self._ban.Bind( wx.EVT_BUTTON, self.EventBan )		
+			self._ban.SetBackgroundColour( ( 255, 0, 0 ) )
+			self._ban.SetForegroundColour( ( 255, 255, 0 ) )
+			
+			self._superban = wx.Button( self._ban_panel, label = 'ban user and delete every contribution they have ever made' )
+			self._superban.Bind( wx.EVT_BUTTON, self.EventSuperban )		
+			self._superban.SetBackgroundColour( ( 255, 0, 0 ) )
+			self._superban.SetForegroundColour( ( 255, 255, 0 ) )
+			
+			self._exit = wx.Button( self, id = wx.ID_CANCEL, label = 'Exit' )
+			
+	
+		def PopulateControls():
+			
+			if len( self._subject_identifiers ) == 1:
+				
+				( subject_identifier, ) = self._subject_identifiers
+				
+				response = self._service.Request( HC.GET, 'account_info', { 'subject_identifier' : subject_identifier } )
+				
+				subject_string = HC.u( response[ 'account_info' ] )
+				
+			else: subject_string = 'modifying ' + HC.ConvertIntToPrettyString( len( self._subject_identifiers ) ) + ' accounts'
+			
+			self._subject_text.SetLabel( subject_string )
+			
+			#
+			
+			response = self._service.Request( HC.GET, 'account_types' )
+			
+			account_types = response[ 'account_types' ]
+			
+			for account_type in account_types: self._account_types.Append( account_type.ConvertToString(), account_type )
+			
+			self._account_types.SetSelection( 0 )
+			
+			#
+			
+			for ( string, value ) in HC.lifetimes:
+				
+				if value is not None: self._add_to_expires.Append( string, value ) # don't want 'add no limit'
+				
+			
+			self._add_to_expires.SetSelection( 1 ) # three months
+			
+			for ( string, value ) in HC.lifetimes: self._set_expires.Append( string, value )
+			self._set_expires.SetSelection( 1 ) # three months
+			
+			#
+			
+			if not self._service.GetInfo( 'account' ).HasPermission( HC.GENERAL_ADMIN ):
+				
+				self._account_types_ok.Disable()
+				self._add_to_expires_ok.Disable()
+				self._set_expires_ok.Disable()
+				
+			
+		
+		def ArrangeControls():
+			
+			self._account_info_panel.AddF( self._subject_text, FLAGS_EXPAND_PERPENDICULAR )
+			
+			account_types_hbox = wx.BoxSizer( wx.HORIZONTAL )
+			
+			account_types_hbox.AddF( self._account_types, FLAGS_MIXED )
+			account_types_hbox.AddF( self._account_types_ok, FLAGS_MIXED )
+			
+			self._account_types_panel.AddF( account_types_hbox, FLAGS_EXPAND_PERPENDICULAR )
+			
+			add_to_expires_box = wx.BoxSizer( wx.HORIZONTAL )
+			
+			add_to_expires_box.AddF( wx.StaticText( self._expiration_panel, label = 'add to expires: ' ), FLAGS_MIXED )
+			add_to_expires_box.AddF( self._add_to_expires, FLAGS_EXPAND_BOTH_WAYS )
+			add_to_expires_box.AddF( self._add_to_expires_ok, FLAGS_MIXED )
+			
+			set_expires_box = wx.BoxSizer( wx.HORIZONTAL )
+			
+			set_expires_box.AddF( wx.StaticText( self._expiration_panel, label = 'set expires to: ' ), FLAGS_MIXED )
+			set_expires_box.AddF( self._set_expires, FLAGS_EXPAND_BOTH_WAYS )
+			set_expires_box.AddF( self._set_expires_ok, FLAGS_MIXED )
+			
+			self._expiration_panel.AddF( add_to_expires_box, FLAGS_EXPAND_PERPENDICULAR )
+			self._expiration_panel.AddF( set_expires_box, FLAGS_EXPAND_PERPENDICULAR )
+			
+			self._ban_panel.AddF( self._ban, FLAGS_EXPAND_PERPENDICULAR )
+			self._ban_panel.AddF( self._superban, FLAGS_EXPAND_PERPENDICULAR )
+			
+			vbox = wx.BoxSizer( wx.VERTICAL )
+			vbox.AddF( self._account_info_panel, FLAGS_EXPAND_PERPENDICULAR )
+			vbox.AddF( self._account_types_panel, FLAGS_EXPAND_PERPENDICULAR )
+			vbox.AddF( self._expiration_panel, FLAGS_EXPAND_PERPENDICULAR )
+			vbox.AddF( self._ban_panel, FLAGS_EXPAND_PERPENDICULAR )
+			vbox.AddF( self._exit, FLAGS_BUTTON_SIZER )
+			
+			self.SetSizer( vbox )
+			
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+		
+		Dialog.__init__( self, parent, 'modify account' )
+		
+		self._service = HC.app.GetManager( 'services' ).GetService( service_key )
+		self._subject_identifiers = list( subject_identifiers )
+		
+		InitialiseControls()
+		
+		PopulateControls()
+		
+		ArrangeControls()
+		
+		wx.CallAfter( self._exit.SetFocus )
+		
+	
+	def _DoModification( self, action, **kwargs ):
+		
+		request_args = kwargs
+		
+		request_args[ 'subject_identifiers' ] = self._subject_identifiers
+		request_args[ 'action' ] = action
+		
+		self._service.Request( HC.POST, 'account', request_args )
+		
+		if len( self._subject_identifiers ) == 1:
+			
+			( subject_identifier, ) = self._subject_identifiers
+			
+			response = self._service.Request( HC.GET, 'account_info', { 'subject_identifier' : subject_identifier } )
+			
+			account_info = response[ 'account_info' ]
+			
+			self._subject_text.SetLabel( HC.u( account_info ) )
+			
+		
+		if len( self._subject_identifiers ) > 1: wx.MessageBox( 'Done!' )
+		
+	
+	def EventAddToExpires( self, event ): self._DoModification( HC.ADD_TO_EXPIRES, timespan = self._add_to_expires.GetClientData( self._add_to_expires.GetSelection() ) )
+	
+	def EventBan( self, event ):
+		
+		with DialogTextEntry( self, 'Enter reason for the ban.' ) as dlg:
+			
+			if dlg.ShowModal() == wx.ID_OK: self._DoModification( HC.BAN, reason = dlg.GetValue() )
+			
+		
+	
+	def EventChangeAccountType( self, event ): self._DoModification( HC.CHANGE_ACCOUNT_TYPE, title = self._account_types.GetClientData( self._account_types.GetSelection() ).GetTitle() )
+	
+	def EventSetExpires( self, event ):
+		
+		expires = self._set_expires.GetClientData( self._set_expires.GetSelection() )
+		
+		if expires is not None: expires += HC.GetNow()
+		
+		self._DoModification( HC.SET_EXPIRES, expires = expires )
+		
+	
+	def EventSuperban( self, event ):
+		
+		with DialogTextEntry( self, 'Enter reason for the superban.' ) as dlg:
+			
+			if dlg.ShowModal() == wx.ID_OK: self._DoModification( HC.SUPERBAN, reason = dlg.GetValue() )
+			
+		
+	
 class DialogNews( Dialog ):
-    
-    def __init__( self, parent, service_key ):
-        
-        def InitialiseControls():
-            
-            self._news = wx.TextCtrl( self, style = wx.TE_READONLY | wx.TE_MULTILINE )
-            
-            self._previous = wx.Button( self, label = '<' )
-            self._previous.Bind( wx.EVT_BUTTON, self.EventPrevious )
-            
-            self._news_position = wx.TextCtrl( self )
-            
-            self._next = wx.Button( self, label = '>' )
-            self._next.Bind( wx.EVT_BUTTON, self.EventNext )
-            
-            self._done = wx.Button( self, id = wx.ID_CANCEL, label = 'Done' )
-            
-    
-        def PopulateControls():
-            
-            self._newslist = HC.app.Read( 'news', service_key )
-            
-            self._current_news_position = len( self._newslist )
-            
-            self._ShowNews()
-            
-        
-        def ArrangeControls():
-            
-            buttonbox = wx.BoxSizer( wx.HORIZONTAL )
-            
-            buttonbox.AddF( self._previous, FLAGS_MIXED )
-            buttonbox.AddF( self._news_position, FLAGS_MIXED )
-            buttonbox.AddF( self._next, FLAGS_MIXED )
-            
-            donebox = wx.BoxSizer( wx.HORIZONTAL )
-            
-            donebox.AddF( self._done, FLAGS_MIXED )
-            
-            vbox = wx.BoxSizer( wx.VERTICAL )
-            
-            vbox.AddF( self._news, FLAGS_EXPAND_BOTH_WAYS )
-            vbox.AddF( buttonbox, FLAGS_BUTTON_SIZER )
-            vbox.AddF( donebox, FLAGS_BUTTON_SIZER )
-            
-            self.SetSizer( vbox )
-            
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x + 200, 580 ) )
-            
-        
-        Dialog.__init__( self, parent, 'news' )
-        
-        InitialiseControls()
-        
-        PopulateControls()
-        
-        ArrangeControls()
-        
-        wx.CallAfter( self._done.SetFocus )
-        
-    
-    def _ShowNews( self ):
-        
-        if self._current_news_position == 0:
-            
-            self._news.SetValue( '' )
-            
-            self._news_position.SetValue( 'No News' )
-            
-        else:
-            
-            ( news, timestamp ) = self._newslist[ self._current_news_position - 1 ]
-            
-            self._news.SetValue( time.ctime( timestamp ) + ' (' + HC.ConvertTimestampToPrettyAgo( timestamp ) + '):' + os.linesep * 2 + news )
-            
-            self._news_position.SetValue( HC.ConvertIntToPrettyString( self._current_news_position ) + ' / ' + HC.ConvertIntToPrettyString( len( self._newslist ) ) )
-            
-        
-    
-    def EventNext( self, event ):
-        
-        if self._current_news_position < len( self._newslist ): self._current_news_position += 1
-        
-        self._ShowNews()
-        
-    
-    def EventPrevious( self, event ):
-        
-        if self._current_news_position > 1: self._current_news_position -= 1
-        
-        self._ShowNews()
-        
-    
+	
+	def __init__( self, parent, service_key ):
+		
+		def InitialiseControls():
+			
+			self._news = wx.TextCtrl( self, style = wx.TE_READONLY | wx.TE_MULTILINE )
+			
+			self._previous = wx.Button( self, label = '<' )
+			self._previous.Bind( wx.EVT_BUTTON, self.EventPrevious )
+			
+			self._news_position = wx.TextCtrl( self )
+			
+			self._next = wx.Button( self, label = '>' )
+			self._next.Bind( wx.EVT_BUTTON, self.EventNext )
+			
+			self._done = wx.Button( self, id = wx.ID_CANCEL, label = 'Done' )
+			
+	
+		def PopulateControls():
+			
+			self._newslist = HC.app.Read( 'news', service_key )
+			
+			self._current_news_position = len( self._newslist )
+			
+			self._ShowNews()
+			
+		
+		def ArrangeControls():
+			
+			buttonbox = wx.BoxSizer( wx.HORIZONTAL )
+			
+			buttonbox.AddF( self._previous, FLAGS_MIXED )
+			buttonbox.AddF( self._news_position, FLAGS_MIXED )
+			buttonbox.AddF( self._next, FLAGS_MIXED )
+			
+			donebox = wx.BoxSizer( wx.HORIZONTAL )
+			
+			donebox.AddF( self._done, FLAGS_MIXED )
+			
+			vbox = wx.BoxSizer( wx.VERTICAL )
+			
+			vbox.AddF( self._news, FLAGS_EXPAND_BOTH_WAYS )
+			vbox.AddF( buttonbox, FLAGS_BUTTON_SIZER )
+			vbox.AddF( donebox, FLAGS_BUTTON_SIZER )
+			
+			self.SetSizer( vbox )
+			
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x + 200, 580 ) )
+			
+		
+		Dialog.__init__( self, parent, 'news' )
+		
+		InitialiseControls()
+		
+		PopulateControls()
+		
+		ArrangeControls()
+		
+		wx.CallAfter( self._done.SetFocus )
+		
+	
+	def _ShowNews( self ):
+		
+		if self._current_news_position == 0:
+			
+			self._news.SetValue( '' )
+			
+			self._news_position.SetValue( 'No News' )
+			
+		else:
+			
+			( news, timestamp ) = self._newslist[ self._current_news_position - 1 ]
+			
+			self._news.SetValue( time.ctime( timestamp ) + ' (' + HC.ConvertTimestampToPrettyAgo( timestamp ) + '):' + os.linesep * 2 + news )
+			
+			self._news_position.SetValue( HC.ConvertIntToPrettyString( self._current_news_position ) + ' / ' + HC.ConvertIntToPrettyString( len( self._newslist ) ) )
+			
+		
+	
+	def EventNext( self, event ):
+		
+		if self._current_news_position < len( self._newslist ): self._current_news_position += 1
+		
+		self._ShowNews()
+		
+	
+	def EventPrevious( self, event ):
+		
+		if self._current_news_position > 1: self._current_news_position -= 1
+		
+		self._ShowNews()
+		
+	
 class DialogPageChooser( Dialog ):
-    
-    def __init__( self, parent ):
-        
-        def InitialiseControls():
-            
-            self._hidden_cancel = wx.Button( self, id = wx.ID_CANCEL, size = ( 0, 0 ) )
-            
-            self._button_hidden = wx.Button( self )
-            self._button_hidden.Hide()
-            
-            self._button_1 = wx.Button( self, label = '', id = 1 )
-            self._button_2 = wx.Button( self, label = '', id = 2 )
-            self._button_3 = wx.Button( self, label = '', id = 3 )
-            self._button_4 = wx.Button( self, label = '', id = 4 )
-            self._button_5 = wx.Button( self, label = '', id = 5 )
-            self._button_6 = wx.Button( self, label = '', id = 6 )
-            self._button_7 = wx.Button( self, label = '', id = 7 )
-            self._button_8 = wx.Button( self, label = '', id = 8 )
-            self._button_9 = wx.Button( self, label = '', id = 9 )
-            
-        
-        def PopulateControls():
-            
-            pass
-            
-        
-        def ArrangeControls():
-            
-            self.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_BTNFACE ) )
-            
-            gridbox = wx.GridSizer( 0, 3 )
-            
-            gridbox.AddF( self._button_7, FLAGS_EXPAND_BOTH_WAYS )
-            gridbox.AddF( self._button_8, FLAGS_EXPAND_BOTH_WAYS )
-            gridbox.AddF( self._button_9, FLAGS_EXPAND_BOTH_WAYS )
-            gridbox.AddF( self._button_4, FLAGS_EXPAND_BOTH_WAYS )
-            gridbox.AddF( self._button_5, FLAGS_EXPAND_BOTH_WAYS )
-            gridbox.AddF( self._button_6, FLAGS_EXPAND_BOTH_WAYS )
-            gridbox.AddF( self._button_1, FLAGS_EXPAND_BOTH_WAYS )
-            gridbox.AddF( self._button_2, FLAGS_EXPAND_BOTH_WAYS )
-            gridbox.AddF( self._button_3, FLAGS_EXPAND_BOTH_WAYS )
-            
-            self.SetSizer( gridbox )
-            
-            self.SetInitialSize( ( 420, 210 ) )
-            
-        
-        Dialog.__init__( self, parent, 'new page', position = 'center' )
-        
-        InitialiseControls()
-        
-        PopulateControls()
-        
-        ArrangeControls()
-        
-        self._services = HC.app.GetManager( 'services' ).GetServices()
-        
-        self._petition_service_keys = [ service.GetServiceKey() for service in self._services if service.GetServiceType() in HC.REPOSITORIES and service.GetInfo( 'account' ).HasPermission( HC.RESOLVE_PETITIONS ) ]
-        
-        self._InitButtons( 'home' )
-        
-        self.Bind( wx.EVT_BUTTON, self.EventButton )
-        self.Bind( wx.EVT_CHAR_HOOK, self.EventCharHook )
-        self.Bind( wx.EVT_MENU, self.EventMenu )
-        
-        self._button_hidden.SetFocus()
-        
-        #
-        
-        entries = []
-        
-        entries.append( ( wx.ACCEL_NORMAL, wx.WXK_UP, CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetId( 'button', 8 ) ) )
-        entries.append( ( wx.ACCEL_NORMAL, wx.WXK_LEFT, CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetId( 'button', 4 ) ) )
-        entries.append( ( wx.ACCEL_NORMAL, wx.WXK_RIGHT, CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetId( 'button', 6 ) ) )
-        entries.append( ( wx.ACCEL_NORMAL, wx.WXK_DOWN, CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetId( 'button', 2 ) ) )
-        
-        entries.append( ( wx.ACCEL_NORMAL, wx.WXK_NUMPAD1, CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetId( 'button', 1 ) ) )
-        entries.append( ( wx.ACCEL_NORMAL, wx.WXK_NUMPAD2, CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetId( 'button', 2 ) ) )
-        entries.append( ( wx.ACCEL_NORMAL, wx.WXK_NUMPAD3, CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetId( 'button', 3 ) ) )
-        entries.append( ( wx.ACCEL_NORMAL, wx.WXK_NUMPAD4, CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetId( 'button', 4 ) ) )
-        entries.append( ( wx.ACCEL_NORMAL, wx.WXK_NUMPAD5, CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetId( 'button', 5 ) ) )
-        entries.append( ( wx.ACCEL_NORMAL, wx.WXK_NUMPAD6, CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetId( 'button', 6 ) ) )
-        entries.append( ( wx.ACCEL_NORMAL, wx.WXK_NUMPAD7, CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetId( 'button', 7 ) ) )
-        entries.append( ( wx.ACCEL_NORMAL, wx.WXK_NUMPAD8, CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetId( 'button', 8 ) ) )
-        entries.append( ( wx.ACCEL_NORMAL, wx.WXK_NUMPAD9, CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetId( 'button', 9 ) ) )
-        
-        self.SetAcceleratorTable( wx.AcceleratorTable( entries ) )
-        
-        #
-        
-        self.Show( True )
-        
-    
-    def _AddEntry( self, button, entry ):
-        
-        id = button.GetId()
-        
-        self._command_dict[ id ] = entry
-        
-        ( entry_type, obj ) = entry
-        
-        if entry_type == 'menu': button.SetLabel( obj )
-        elif entry_type in ( 'page_query', 'page_petitions' ):
-            
-            name = HC.app.GetManager( 'services' ).GetService( obj ).GetName()
-            
-            button.SetLabel( name )
-            
-        elif entry_type == 'page_import_booru': button.SetLabel( 'booru' )
-        elif entry_type == 'page_import_gallery':
-            
-            ( name, gallery_type ) = obj
-            
-            if gallery_type is None: button.SetLabel( name )
-            else: button.SetLabel( name + ' by ' + gallery_type )
-            
-        elif entry_type == 'page_import_thread_watcher': button.SetLabel( 'thread watcher' )
-        elif entry_type == 'page_import_url': button.SetLabel( 'url' )
-        
-        button.Show()
-        
-    
-    def _InitButtons( self, menu_keyword ):
-        
-        self._command_dict = {}
-        
-        if menu_keyword == 'home':
-            
-            entries = [ ( 'menu', 'files' ), ( 'menu', 'download' ) ]
-            
-            if len( self._petition_service_keys ) > 0: entries.append( ( 'menu', 'petitions' ) )
-            
-        elif menu_keyword == 'files':
-            
-            file_repos = [ ( 'page_query', service_key ) for service_key in [ service.GetServiceKey() for service in self._services if service.GetServiceType() == HC.FILE_REPOSITORY ] ]
-            
-            entries = [ ( 'page_query', HC.LOCAL_FILE_SERVICE_KEY ) ] + file_repos
-            
-        elif menu_keyword == 'download': entries = [ ( 'page_import_url', None ), ( 'page_import_thread_watcher', None ), ( 'menu', 'gallery' ) ]
-        elif menu_keyword == 'gallery':
-            
-            entries = [ ( 'page_import_booru', None ), ( 'page_import_gallery', ( 'giphy', None ) ), ( 'page_import_gallery', ( 'deviant art', 'artist' ) ), ( 'menu', 'hentai foundry' ), ( 'page_import_gallery', ( 'newgrounds', None ) ) ]
-            
-            ( id, password ) = HC.app.Read( 'pixiv_account' )
-            
-            if id != '' and password != '': entries.append( ( 'menu', 'pixiv' ) )
-            
-            entries.extend( [ ( 'page_import_gallery', ( 'tumblr', None ) ) ] )
-            
-        elif menu_keyword == 'hentai foundry': entries = [ ( 'page_import_gallery', ( 'hentai foundry', 'artist' ) ), ( 'page_import_gallery', ( 'hentai foundry', 'tags' ) ) ]
-        elif menu_keyword == 'pixiv': entries = [ ( 'page_import_gallery', ( 'pixiv', 'artist_id' ) ), ( 'page_import_gallery', ( 'pixiv', 'tag' ) ) ]
-        elif menu_keyword == 'petitions': entries = [ ( 'page_petitions', service_key ) for service_key in self._petition_service_keys ]
-        
-        if len( entries ) <= 4:
-            
-            self._button_1.Hide()
-            self._button_3.Hide()
-            self._button_5.Hide()
-            self._button_7.Hide()
-            self._button_9.Hide()
-            
-            potential_buttons = [ self._button_8, self._button_4, self._button_6, self._button_2 ]
-            
-        elif len( entries ) <= 9: potential_buttons = [ self._button_7, self._button_8, self._button_9, self._button_4, self._button_5, self._button_6, self._button_1, self._button_2, self._button_3 ]
-        else:
-            
-            pass # sort out a multi-page solution? maybe only if this becomes a big thing; the person can always select from the menus, yeah?
-            
-            potential_buttons = [ self._button_7, self._button_8, self._button_9, self._button_4, self._button_5, self._button_6, self._button_1, self._button_2, self._button_3 ]
-            entries = entries[:9]
-            
-        
-        for entry in entries: self._AddEntry( potential_buttons.pop( 0 ), entry )
-        
-        unused_buttons = potential_buttons
-        
-        for button in unused_buttons: button.Hide()
-        
-    
-    def EventButton( self, event ):
-        
-        id = event.GetId()
-        
-        if id == wx.ID_CANCEL: self.EndModal( wx.ID_CANCEL )
-        elif id in self._command_dict:
-            
-            ( entry_type, obj ) = self._command_dict[ id ]
-            
-            if entry_type == 'menu': self._InitButtons( obj )
-            else:
-                
-                if entry_type == 'page_query': HC.pubsub.pub( 'new_page_query', obj )
-                elif entry_type == 'page_import_booru':
-                    
-                    with DialogSelectBooru( self ) as dlg:
-                        
-                        if dlg.ShowModal() == wx.ID_OK:
-                            
-                            booru = dlg.GetBooru()
-                            
-                            HC.pubsub.pub( 'new_page_import_gallery', 'booru', booru )
-                            
-                        
-                    
-                elif entry_type == 'page_import_gallery':
-                    
-                    ( gallery_name, gallery_type ) = obj
-                    
-                    HC.pubsub.pub( 'new_page_import_gallery', gallery_name, gallery_type )
-                    
-                elif entry_type == 'page_import_thread_watcher': HC.pubsub.pub( 'new_page_import_thread_watcher' )
-                elif entry_type == 'page_import_url': HC.pubsub.pub( 'new_page_import_url' )
-                elif entry_type == 'page_petitions': HC.pubsub.pub( 'new_page_petitions', obj )
-                
-                self.EndModal( wx.ID_OK )
-                
-            
-        
-        self._button_hidden.SetFocus()
-        
-    
-    def EventCharHook( self, event ):
-        
-        if event.KeyCode == wx.WXK_ESCAPE: self.EndModal( wx.ID_OK )
-        else: event.Skip()
-        
-    
-    def EventMenu( self, event ):
-        
-        event_id = event.GetId()
-        
-        action = CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetAction( event_id )
-        
-        if action is not None:
-            
-            ( command, data ) = action
-            
-            if command == 'button':
-                
-                new_event = wx.CommandEvent( wx.wxEVT_COMMAND_BUTTON_CLICKED, winid = data )
-                
-                self.ProcessEvent( new_event )
-                
-            
-        
-    
+	
+	def __init__( self, parent ):
+		
+		def InitialiseControls():
+			
+			self._hidden_cancel = wx.Button( self, id = wx.ID_CANCEL, size = ( 0, 0 ) )
+			
+			self._button_hidden = wx.Button( self )
+			self._button_hidden.Hide()
+			
+			self._button_1 = wx.Button( self, label = '', id = 1 )
+			self._button_2 = wx.Button( self, label = '', id = 2 )
+			self._button_3 = wx.Button( self, label = '', id = 3 )
+			self._button_4 = wx.Button( self, label = '', id = 4 )
+			self._button_5 = wx.Button( self, label = '', id = 5 )
+			self._button_6 = wx.Button( self, label = '', id = 6 )
+			self._button_7 = wx.Button( self, label = '', id = 7 )
+			self._button_8 = wx.Button( self, label = '', id = 8 )
+			self._button_9 = wx.Button( self, label = '', id = 9 )
+			
+		
+		def PopulateControls():
+			
+			pass
+			
+		
+		def ArrangeControls():
+			
+			self.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_BTNFACE ) )
+			
+			gridbox = wx.GridSizer( 0, 3 )
+			
+			gridbox.AddF( self._button_7, FLAGS_EXPAND_BOTH_WAYS )
+			gridbox.AddF( self._button_8, FLAGS_EXPAND_BOTH_WAYS )
+			gridbox.AddF( self._button_9, FLAGS_EXPAND_BOTH_WAYS )
+			gridbox.AddF( self._button_4, FLAGS_EXPAND_BOTH_WAYS )
+			gridbox.AddF( self._button_5, FLAGS_EXPAND_BOTH_WAYS )
+			gridbox.AddF( self._button_6, FLAGS_EXPAND_BOTH_WAYS )
+			gridbox.AddF( self._button_1, FLAGS_EXPAND_BOTH_WAYS )
+			gridbox.AddF( self._button_2, FLAGS_EXPAND_BOTH_WAYS )
+			gridbox.AddF( self._button_3, FLAGS_EXPAND_BOTH_WAYS )
+			
+			self.SetSizer( gridbox )
+			
+			self.SetInitialSize( ( 420, 210 ) )
+			
+		
+		Dialog.__init__( self, parent, 'new page', position = 'center' )
+		
+		InitialiseControls()
+		
+		PopulateControls()
+		
+		ArrangeControls()
+		
+		self._services = HC.app.GetManager( 'services' ).GetServices()
+		
+		self._petition_service_keys = [ service.GetServiceKey() for service in self._services if service.GetServiceType() in HC.REPOSITORIES and service.GetInfo( 'account' ).HasPermission( HC.RESOLVE_PETITIONS ) ]
+		
+		self._InitButtons( 'home' )
+		
+		self.Bind( wx.EVT_BUTTON, self.EventButton )
+		self.Bind( wx.EVT_CHAR_HOOK, self.EventCharHook )
+		self.Bind( wx.EVT_MENU, self.EventMenu )
+		
+		self._button_hidden.SetFocus()
+		
+		#
+		
+		entries = []
+		
+		entries.append( ( wx.ACCEL_NORMAL, wx.WXK_UP, CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetId( 'button', 8 ) ) )
+		entries.append( ( wx.ACCEL_NORMAL, wx.WXK_LEFT, CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetId( 'button', 4 ) ) )
+		entries.append( ( wx.ACCEL_NORMAL, wx.WXK_RIGHT, CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetId( 'button', 6 ) ) )
+		entries.append( ( wx.ACCEL_NORMAL, wx.WXK_DOWN, CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetId( 'button', 2 ) ) )
+		
+		entries.append( ( wx.ACCEL_NORMAL, wx.WXK_NUMPAD1, CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetId( 'button', 1 ) ) )
+		entries.append( ( wx.ACCEL_NORMAL, wx.WXK_NUMPAD2, CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetId( 'button', 2 ) ) )
+		entries.append( ( wx.ACCEL_NORMAL, wx.WXK_NUMPAD3, CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetId( 'button', 3 ) ) )
+		entries.append( ( wx.ACCEL_NORMAL, wx.WXK_NUMPAD4, CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetId( 'button', 4 ) ) )
+		entries.append( ( wx.ACCEL_NORMAL, wx.WXK_NUMPAD5, CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetId( 'button', 5 ) ) )
+		entries.append( ( wx.ACCEL_NORMAL, wx.WXK_NUMPAD6, CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetId( 'button', 6 ) ) )
+		entries.append( ( wx.ACCEL_NORMAL, wx.WXK_NUMPAD7, CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetId( 'button', 7 ) ) )
+		entries.append( ( wx.ACCEL_NORMAL, wx.WXK_NUMPAD8, CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetId( 'button', 8 ) ) )
+		entries.append( ( wx.ACCEL_NORMAL, wx.WXK_NUMPAD9, CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetId( 'button', 9 ) ) )
+		
+		self.SetAcceleratorTable( wx.AcceleratorTable( entries ) )
+		
+		#
+		
+		self.Show( True )
+		
+	
+	def _AddEntry( self, button, entry ):
+		
+		id = button.GetId()
+		
+		self._command_dict[ id ] = entry
+		
+		( entry_type, obj ) = entry
+		
+		if entry_type == 'menu': button.SetLabel( obj )
+		elif entry_type in ( 'page_query', 'page_petitions' ):
+			
+			name = HC.app.GetManager( 'services' ).GetService( obj ).GetName()
+			
+			button.SetLabel( name )
+			
+		elif entry_type == 'page_import_booru': button.SetLabel( 'booru' )
+		elif entry_type == 'page_import_gallery':
+			
+			( name, gallery_type ) = obj
+			
+			if gallery_type is None: button.SetLabel( name )
+			else: button.SetLabel( name + ' by ' + gallery_type )
+			
+		elif entry_type == 'page_import_thread_watcher': button.SetLabel( 'thread watcher' )
+		elif entry_type == 'page_import_url': button.SetLabel( 'url' )
+		
+		button.Show()
+		
+	
+	def _InitButtons( self, menu_keyword ):
+		
+		self._command_dict = {}
+		
+		if menu_keyword == 'home':
+			
+			entries = [ ( 'menu', 'files' ), ( 'menu', 'download' ) ]
+			
+			if len( self._petition_service_keys ) > 0: entries.append( ( 'menu', 'petitions' ) )
+			
+		elif menu_keyword == 'files':
+			
+			file_repos = [ ( 'page_query', service_key ) for service_key in [ service.GetServiceKey() for service in self._services if service.GetServiceType() == HC.FILE_REPOSITORY ] ]
+			
+			entries = [ ( 'page_query', HC.LOCAL_FILE_SERVICE_KEY ) ] + file_repos
+			
+		elif menu_keyword == 'download': entries = [ ( 'page_import_url', None ), ( 'page_import_thread_watcher', None ), ( 'menu', 'gallery' ) ]
+		elif menu_keyword == 'gallery':
+			
+			entries = [ ( 'page_import_booru', None ), ( 'page_import_gallery', ( 'giphy', None ) ), ( 'page_import_gallery', ( 'deviant art', 'artist' ) ), ( 'menu', 'hentai foundry' ), ( 'page_import_gallery', ( 'newgrounds', None ) ) ]
+			
+			( id, password ) = HC.app.Read( 'pixiv_account' )
+			
+			if id != '' and password != '': entries.append( ( 'menu', 'pixiv' ) )
+			
+			entries.extend( [ ( 'page_import_gallery', ( 'tumblr', None ) ) ] )
+			
+		elif menu_keyword == 'hentai foundry': entries = [ ( 'page_import_gallery', ( 'hentai foundry', 'artist' ) ), ( 'page_import_gallery', ( 'hentai foundry', 'tags' ) ) ]
+		elif menu_keyword == 'pixiv': entries = [ ( 'page_import_gallery', ( 'pixiv', 'artist_id' ) ), ( 'page_import_gallery', ( 'pixiv', 'tag' ) ) ]
+		elif menu_keyword == 'petitions': entries = [ ( 'page_petitions', service_key ) for service_key in self._petition_service_keys ]
+		
+		if len( entries ) <= 4:
+			
+			self._button_1.Hide()
+			self._button_3.Hide()
+			self._button_5.Hide()
+			self._button_7.Hide()
+			self._button_9.Hide()
+			
+			potential_buttons = [ self._button_8, self._button_4, self._button_6, self._button_2 ]
+			
+		elif len( entries ) <= 9: potential_buttons = [ self._button_7, self._button_8, self._button_9, self._button_4, self._button_5, self._button_6, self._button_1, self._button_2, self._button_3 ]
+		else:
+			
+			pass # sort out a multi-page solution? maybe only if this becomes a big thing; the person can always select from the menus, yeah?
+			
+			potential_buttons = [ self._button_7, self._button_8, self._button_9, self._button_4, self._button_5, self._button_6, self._button_1, self._button_2, self._button_3 ]
+			entries = entries[:9]
+			
+		
+		for entry in entries: self._AddEntry( potential_buttons.pop( 0 ), entry )
+		
+		unused_buttons = potential_buttons
+		
+		for button in unused_buttons: button.Hide()
+		
+	
+	def EventButton( self, event ):
+		
+		id = event.GetId()
+		
+		if id == wx.ID_CANCEL: self.EndModal( wx.ID_CANCEL )
+		elif id in self._command_dict:
+			
+			( entry_type, obj ) = self._command_dict[ id ]
+			
+			if entry_type == 'menu': self._InitButtons( obj )
+			else:
+				
+				if entry_type == 'page_query': HC.pubsub.pub( 'new_page_query', obj )
+				elif entry_type == 'page_import_booru':
+					
+					with DialogSelectBooru( self ) as dlg:
+						
+						if dlg.ShowModal() == wx.ID_OK:
+							
+							booru = dlg.GetBooru()
+							
+							HC.pubsub.pub( 'new_page_import_gallery', 'booru', booru )
+							
+						
+					
+				elif entry_type == 'page_import_gallery':
+					
+					( gallery_name, gallery_type ) = obj
+					
+					HC.pubsub.pub( 'new_page_import_gallery', gallery_name, gallery_type )
+					
+				elif entry_type == 'page_import_thread_watcher': HC.pubsub.pub( 'new_page_import_thread_watcher' )
+				elif entry_type == 'page_import_url': HC.pubsub.pub( 'new_page_import_url' )
+				elif entry_type == 'page_petitions': HC.pubsub.pub( 'new_page_petitions', obj )
+				
+				self.EndModal( wx.ID_OK )
+				
+			
+		
+		self._button_hidden.SetFocus()
+		
+	
+	def EventCharHook( self, event ):
+		
+		if event.KeyCode == wx.WXK_ESCAPE: self.EndModal( wx.ID_OK )
+		else: event.Skip()
+		
+	
+	def EventMenu( self, event ):
+		
+		event_id = event.GetId()
+		
+		action = CC.MENU_EVENT_ID_TO_ACTION_CACHE.GetAction( event_id )
+		
+		if action is not None:
+			
+			( command, data ) = action
+			
+			if command == 'button':
+				
+				new_event = wx.CommandEvent( wx.wxEVT_COMMAND_BUTTON_CLICKED, winid = data )
+				
+				self.ProcessEvent( new_event )
+				
+			
+		
+	
 class DialogPathsToTags( Dialog ):
     
     def __init__( self, parent, paths ):
@@ -4841,310 +4841,310 @@ class DialogSelectBooru( Dialog ):
             
             ( x, y ) = self.GetEffectiveMinSize()
             
-            if x < 320: x = 320
-            
-            self.SetInitialSize( ( x, y ) )
-            
-        
-        Dialog.__init__( self, parent, 'select booru' )
-        
-        InitialiseControls()
-        
-        PopulateControls()
-        
-        ArrangeControls()
-        
-        wx.CallAfter( self._ok.SetFocus )
-        
-    
-    def EventDoubleClick( self, event ): self.EndModal( wx.ID_OK )
-    
-    def EventOK( self, event ):
-    
-        selection = self._boorus.GetSelection()
-        
-        if selection != wx.NOT_FOUND: self.EndModal( wx.ID_OK )
-        
-    
-    def GetBooru( self ): return self._boorus.GetClientData( self._boorus.GetSelection() )
-    
+			if x < 320: x = 320
+			
+			self.SetInitialSize( ( x, y ) )
+			
+		
+		Dialog.__init__( self, parent, 'select booru' )
+		
+		InitialiseControls()
+		
+		PopulateControls()
+		
+		ArrangeControls()
+		
+		wx.CallAfter( self._ok.SetFocus )
+		
+	
+	def EventDoubleClick( self, event ): self.EndModal( wx.ID_OK )
+	
+	def EventOK( self, event ):
+	
+		selection = self._boorus.GetSelection()
+		
+		if selection != wx.NOT_FOUND: self.EndModal( wx.ID_OK )
+		
+	
+	def GetBooru( self ): return self._boorus.GetClientData( self._boorus.GetSelection() )
+	
 class DialogSelectImageboard( Dialog ):
-    
-    def __init__( self, parent ):
-        
-        def InitialiseControls():
-            
-            self._hidden_cancel = wx.Button( self, id = wx.ID_CANCEL, size = ( 0, 0 ) )
-            
-            self._tree = wx.TreeCtrl( self )
-            self._tree.Bind( wx.EVT_TREE_ITEM_ACTIVATED, self.EventActivate )
-            
-        
-        def PopulateControls():
-            
-            all_imageboards = HC.app.Read( 'imageboards' )
-            
-            root_item = self._tree.AddRoot( 'all sites' )
-            
-            for ( site, imageboards ) in all_imageboards.items():
-                
-                site_item = self._tree.AppendItem( root_item, site )
-                
-                for imageboard in imageboards:
-                    
-                    name = imageboard.GetName()
-                    
-                    self._tree.AppendItem( site_item, name, data = wx.TreeItemData( imageboard ) )
-                    
-                
-            
-            self._tree.Expand( root_item )
-            
-        
-        def ArrangeControls():
-            
-            vbox = wx.BoxSizer( wx.VERTICAL )
-            
-            vbox.AddF( self._tree, FLAGS_EXPAND_BOTH_WAYS )
-            
-            self.SetSizer( vbox )
-            
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            if x < 320: x = 320
-            if y < 640: y = 640
-            
-            self.SetInitialSize( ( x, y ) )
-            
-        
-        Dialog.__init__( self, parent, 'select imageboard' )
-        
-        InitialiseControls()
-        
-        PopulateControls()
-        
-        ArrangeControls()
-        
-    
-    def EventActivate( self, event ):
-        
-        item = self._tree.GetSelection()
-        
-        data_object = self._tree.GetItemData( item )
-        
-        if data_object is None: self._tree.Toggle( item )
-        else: self.EndModal( wx.ID_OK )
-        
-    
-    def GetImageboard( self ): return self._tree.GetItemData( self._tree.GetSelection() ).GetData()
-    
+	
+	def __init__( self, parent ):
+		
+		def InitialiseControls():
+			
+			self._hidden_cancel = wx.Button( self, id = wx.ID_CANCEL, size = ( 0, 0 ) )
+			
+			self._tree = wx.TreeCtrl( self )
+			self._tree.Bind( wx.EVT_TREE_ITEM_ACTIVATED, self.EventActivate )
+			
+		
+		def PopulateControls():
+			
+			all_imageboards = HC.app.Read( 'imageboards' )
+			
+			root_item = self._tree.AddRoot( 'all sites' )
+			
+			for ( site, imageboards ) in all_imageboards.items():
+				
+				site_item = self._tree.AppendItem( root_item, site )
+				
+				for imageboard in imageboards:
+					
+					name = imageboard.GetName()
+					
+					self._tree.AppendItem( site_item, name, data = wx.TreeItemData( imageboard ) )
+					
+				
+			
+			self._tree.Expand( root_item )
+			
+		
+		def ArrangeControls():
+			
+			vbox = wx.BoxSizer( wx.VERTICAL )
+			
+			vbox.AddF( self._tree, FLAGS_EXPAND_BOTH_WAYS )
+			
+			self.SetSizer( vbox )
+			
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			if x < 320: x = 320
+			if y < 640: y = 640
+			
+			self.SetInitialSize( ( x, y ) )
+			
+		
+		Dialog.__init__( self, parent, 'select imageboard' )
+		
+		InitialiseControls()
+		
+		PopulateControls()
+		
+		ArrangeControls()
+		
+	
+	def EventActivate( self, event ):
+		
+		item = self._tree.GetSelection()
+		
+		data_object = self._tree.GetItemData( item )
+		
+		if data_object is None: self._tree.Toggle( item )
+		else: self.EndModal( wx.ID_OK )
+		
+	
+	def GetImageboard( self ): return self._tree.GetItemData( self._tree.GetSelection() ).GetData()
+	
 class DialogCheckFromListOfStrings( Dialog ):
-    
-    def __init__( self, parent, title, list_of_strings, checked_strings = [] ):
-        
-        def InitialiseControls():
-            
-            self._strings = wx.CheckListBox( self )
-            
-            self._ok = wx.Button( self, id = wx.ID_OK, label = 'ok' )
-            self._cancel = wx.Button( self, id = wx.ID_CANCEL, label = 'cancel' )
-            
-    
-        def PopulateControls():
-            
-            for s in list_of_strings: self._strings.Append( s )
-            
-            for s in checked_strings:
-                
-                i = self._strings.FindString( s )
-                
-                if i != wx.NOT_FOUND: self._strings.Check( i, True )
-                
-            
-        
-        def ArrangeControls():
-            
-            hbox = wx.BoxSizer( wx.HORIZONTAL )
-            
-            hbox.AddF( self._ok, FLAGS_MIXED )
-            hbox.AddF( self._cancel, FLAGS_MIXED )
-            
-            vbox = wx.BoxSizer( wx.VERTICAL )
-            
-            vbox.AddF( self._strings, FLAGS_EXPAND_PERPENDICULAR )
-            vbox.AddF( hbox, FLAGS_BUTTON_SIZER )
-            
-            self.SetSizer( vbox )
-            
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            if x < 320: x = 320
-            
-            self.SetInitialSize( ( x, y ) )
-            
-        
-        Dialog.__init__( self, parent, title )
-        
-        InitialiseControls()
-        
-        PopulateControls()
-        
-        ArrangeControls()
-        
-    
-    def GetChecked( self ): return self._strings.GetCheckedStrings()
-    
+	
+	def __init__( self, parent, title, list_of_strings, checked_strings = [] ):
+		
+		def InitialiseControls():
+			
+			self._strings = wx.CheckListBox( self )
+			
+			self._ok = wx.Button( self, id = wx.ID_OK, label = 'ok' )
+			self._cancel = wx.Button( self, id = wx.ID_CANCEL, label = 'cancel' )
+			
+	
+		def PopulateControls():
+			
+			for s in list_of_strings: self._strings.Append( s )
+			
+			for s in checked_strings:
+				
+				i = self._strings.FindString( s )
+				
+				if i != wx.NOT_FOUND: self._strings.Check( i, True )
+				
+			
+		
+		def ArrangeControls():
+			
+			hbox = wx.BoxSizer( wx.HORIZONTAL )
+			
+			hbox.AddF( self._ok, FLAGS_MIXED )
+			hbox.AddF( self._cancel, FLAGS_MIXED )
+			
+			vbox = wx.BoxSizer( wx.VERTICAL )
+			
+			vbox.AddF( self._strings, FLAGS_EXPAND_PERPENDICULAR )
+			vbox.AddF( hbox, FLAGS_BUTTON_SIZER )
+			
+			self.SetSizer( vbox )
+			
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			if x < 320: x = 320
+			
+			self.SetInitialSize( ( x, y ) )
+			
+		
+		Dialog.__init__( self, parent, title )
+		
+		InitialiseControls()
+		
+		PopulateControls()
+		
+		ArrangeControls()
+		
+	
+	def GetChecked( self ): return self._strings.GetCheckedStrings()
+	
 class DialogSelectFromListOfStrings( Dialog ):
-    
-    def __init__( self, parent, title, list_of_strings ):
-        
-        def InitialiseControls():
-            
-            self._hidden_cancel = wx.Button( self, id = wx.ID_CANCEL, size = ( 0, 0 ) )
-            
-            self._strings = wx.ListBox( self )
-            self._strings.Bind( wx.EVT_KEY_DOWN, self.EventKeyDown )
-            self._strings.Bind( wx.EVT_LISTBOX_DCLICK, self.EventSelect )
-            
-            self._ok = wx.Button( self, id = wx.ID_OK, size = ( 0, 0 ) )
-            self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
-            self._ok.SetDefault()
-            
-    
-        def PopulateControls():
-            
-            for s in list_of_strings: self._strings.Append( s )
-            
-        
-        def ArrangeControls():
-            
-            vbox = wx.BoxSizer( wx.VERTICAL )
-            
-            vbox.AddF( self._strings, FLAGS_EXPAND_PERPENDICULAR )
-            
-            self.SetSizer( vbox )
-            
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            if x < 320: x = 320
-            
-            self.SetInitialSize( ( x, y ) )
-            
-        
-        Dialog.__init__( self, parent, title )
-        
-        InitialiseControls()
-        
-        PopulateControls()
-        
-        ArrangeControls()
-        
-    
-    def EventKeyDown( self, event ):
-        
-        if event.KeyCode == wx.WXK_SPACE:
-            
-            selection = self._strings.GetSelection()
-            
-            if selection != wx.NOT_FOUND: self.EndModal( wx.ID_OK )
-            
-        else: event.Skip()
-        
-    
-    def EventOK( self, event ):
-        
-        selection = self._strings.GetSelection()
-        
-        if selection != wx.NOT_FOUND: self.EndModal( wx.ID_OK )
-        
-    
-    def EventSelect( self, event ): self.EndModal( wx.ID_OK )
-    
-    def GetString( self ): return self._strings.GetStringSelection()
-    
+	
+	def __init__( self, parent, title, list_of_strings ):
+		
+		def InitialiseControls():
+			
+			self._hidden_cancel = wx.Button( self, id = wx.ID_CANCEL, size = ( 0, 0 ) )
+			
+			self._strings = wx.ListBox( self )
+			self._strings.Bind( wx.EVT_KEY_DOWN, self.EventKeyDown )
+			self._strings.Bind( wx.EVT_LISTBOX_DCLICK, self.EventSelect )
+			
+			self._ok = wx.Button( self, id = wx.ID_OK, size = ( 0, 0 ) )
+			self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
+			self._ok.SetDefault()
+			
+	
+		def PopulateControls():
+			
+			for s in list_of_strings: self._strings.Append( s )
+			
+		
+		def ArrangeControls():
+			
+			vbox = wx.BoxSizer( wx.VERTICAL )
+			
+			vbox.AddF( self._strings, FLAGS_EXPAND_PERPENDICULAR )
+			
+			self.SetSizer( vbox )
+			
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			if x < 320: x = 320
+			
+			self.SetInitialSize( ( x, y ) )
+			
+		
+		Dialog.__init__( self, parent, title )
+		
+		InitialiseControls()
+		
+		PopulateControls()
+		
+		ArrangeControls()
+		
+	
+	def EventKeyDown( self, event ):
+		
+		if event.KeyCode == wx.WXK_SPACE:
+			
+			selection = self._strings.GetSelection()
+			
+			if selection != wx.NOT_FOUND: self.EndModal( wx.ID_OK )
+			
+		else: event.Skip()
+		
+	
+	def EventOK( self, event ):
+		
+		selection = self._strings.GetSelection()
+		
+		if selection != wx.NOT_FOUND: self.EndModal( wx.ID_OK )
+		
+	
+	def EventSelect( self, event ): self.EndModal( wx.ID_OK )
+	
+	def GetString( self ): return self._strings.GetStringSelection()
+	
 class DialogSelectYoutubeURL( Dialog ):
-    
-    def __init__( self, parent, info ):
-        
-        def InitialiseControls():
-            
-            self._urls = ClientGUICommon.SaneListCtrl( self, 360, [ ( 'format', 150 ), ( 'resolution', 150 ) ] )
-            self._urls.Bind( wx.EVT_LIST_ITEM_ACTIVATED, self.EventOK )
-            
-            self._urls.SetMinSize( ( 360, 200 ) )
-            
-            self._ok = wx.Button( self, wx.ID_OK, label = 'ok' )
-            self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
-            self._ok.SetForegroundColour( ( 0, 128, 0 ) )
-            
-            self._cancel = wx.Button( self, id = wx.ID_CANCEL, label = 'cancel' )
-            self._cancel.SetForegroundColour( ( 128, 0, 0 ) )
-            
-        
-        def PopulateControls():
-            
-            for ( extension, resolution ) in self._info: self._urls.Append( ( extension, resolution ), ( extension, resolution ) )
-            
-            self._urls.SortListItems( 0 )
-            
-        
-        def ArrangeControls():
-            
-            buttons = wx.BoxSizer( wx.HORIZONTAL )
-            
-            buttons.AddF( self._ok, FLAGS_MIXED )
-            buttons.AddF( self._cancel, FLAGS_MIXED )
-            
-            vbox = wx.BoxSizer( wx.VERTICAL )
-            
-            vbox.AddF( self._urls, FLAGS_EXPAND_BOTH_WAYS )
-            vbox.AddF( buttons, FLAGS_BUTTON_SIZER )
-            
-            self.SetSizer( vbox )
-            
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-        
-        Dialog.__init__( self, parent, 'choose youtube format' )
-        
-        self._info = info
-        
-        InitialiseControls()
-        
-        PopulateControls()
-        
-        ArrangeControls()
-        
-        wx.CallAfter( self._ok.SetFocus )
-        
-    
-    def EventOK( self, event ):
-        
-        indices = self._urls.GetAllSelected()
-        
-        if len( indices ) > 0:
-            
-            for index in indices:
-                
-                ( extension, resolution ) = self._urls.GetClientData( index )
-                
-                ( url, title ) = self._info[ ( extension, resolution ) ]
-                
-                url_string = title + ' ' + resolution + ' ' + extension
-                
-                job_key = HC.JobKey( pausable = True, cancellable = True )
-                
-                HydrusThreading.CallToThread( HydrusDownloading.THREADDownloadURL, job_key, url, url_string )
-                
-                HC.pubsub.pub( 'message', job_key )
-                
-            
-        
-        self.EndModal( wx.ID_OK )
-        
-    
+	
+	def __init__( self, parent, info ):
+		
+		def InitialiseControls():
+			
+			self._urls = ClientGUICommon.SaneListCtrl( self, 360, [ ( 'format', 150 ), ( 'resolution', 150 ) ] )
+			self._urls.Bind( wx.EVT_LIST_ITEM_ACTIVATED, self.EventOK )
+			
+			self._urls.SetMinSize( ( 360, 200 ) )
+			
+			self._ok = wx.Button( self, wx.ID_OK, label = 'ok' )
+			self._ok.Bind( wx.EVT_BUTTON, self.EventOK )
+			self._ok.SetForegroundColour( ( 0, 128, 0 ) )
+			
+			self._cancel = wx.Button( self, id = wx.ID_CANCEL, label = 'cancel' )
+			self._cancel.SetForegroundColour( ( 128, 0, 0 ) )
+			
+		
+		def PopulateControls():
+			
+			for ( extension, resolution ) in self._info: self._urls.Append( ( extension, resolution ), ( extension, resolution ) )
+			
+			self._urls.SortListItems( 0 )
+			
+		
+		def ArrangeControls():
+			
+			buttons = wx.BoxSizer( wx.HORIZONTAL )
+			
+			buttons.AddF( self._ok, FLAGS_MIXED )
+			buttons.AddF( self._cancel, FLAGS_MIXED )
+			
+			vbox = wx.BoxSizer( wx.VERTICAL )
+			
+			vbox.AddF( self._urls, FLAGS_EXPAND_BOTH_WAYS )
+			vbox.AddF( buttons, FLAGS_BUTTON_SIZER )
+			
+			self.SetSizer( vbox )
+			
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+		
+		Dialog.__init__( self, parent, 'choose youtube format' )
+		
+		self._info = info
+		
+		InitialiseControls()
+		
+		PopulateControls()
+		
+		ArrangeControls()
+		
+		wx.CallAfter( self._ok.SetFocus )
+		
+	
+	def EventOK( self, event ):
+		
+		indices = self._urls.GetAllSelected()
+		
+		if len( indices ) > 0:
+			
+			for index in indices:
+				
+				( extension, resolution ) = self._urls.GetClientData( index )
+				
+				( url, title ) = self._info[ ( extension, resolution ) ]
+				
+				url_string = title + ' ' + resolution + ' ' + extension
+				
+				job_key = HC.JobKey( pausable = True, cancellable = True )
+				
+				HydrusThreading.CallToThread( HydrusDownloading.THREADDownloadURL, job_key, url, url_string )
+				
+				HC.pubsub.pub( 'message', job_key )
+				
+			
+		
+		self.EndModal( wx.ID_OK )
+		
+	
 class DialogSetupCustomFilterActions( Dialog ):
     
     def __init__( self, parent ):
@@ -5770,148 +5770,148 @@ class DialogSetupExport( Dialog ):
         
     
 class DialogTextEntry( Dialog ):
-    
-    def __init__( self, parent, message, default = '', allow_blank = False ):
-        
-        def InitialiseControls():
-            
-            self._text = wx.TextCtrl( self, style = wx.TE_PROCESS_ENTER )
-            self._text.Bind( wx.EVT_CHAR, self.EventChar )
-            self._text.Bind( wx.EVT_TEXT_ENTER, self.EventEnter )
-            
-            self._ok = wx.Button( self, id = wx.ID_OK, label = 'ok' )
-            self._ok.SetForegroundColour( ( 0, 128, 0 ) )
-            
-            self._cancel = wx.Button( self, id = wx.ID_CANCEL, label = 'cancel' )
-            self._cancel.SetForegroundColour( ( 128, 0, 0 ) )
-            
-    
-        def PopulateControls():
-            
-            self._text.SetValue( default )
-            
-            self._CheckText()
-            
-        
-        def ArrangeControls():
-            
-            hbox = wx.BoxSizer( wx.HORIZONTAL )
-            
-            hbox.AddF( self._ok, FLAGS_SMALL_INDENT )
-            hbox.AddF( self._cancel, FLAGS_SMALL_INDENT )
-            
-            st_message = wx.StaticText( self, label = message )
-            
-            st_message.Wrap( 480 )
-            
-            vbox = wx.BoxSizer( wx.VERTICAL )
-            
-            vbox.AddF( st_message, FLAGS_BIG_INDENT )
-            vbox.AddF( self._text, FLAGS_EXPAND_BOTH_WAYS )
-            vbox.AddF( hbox, FLAGS_BUTTON_SIZER )
-            
-            self.SetSizer( vbox )
-            
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            x = max( x, 250 )
-            
-            self.SetInitialSize( ( x, y ) )
-            
-        
-        Dialog.__init__( self, parent, 'enter text', position = 'center' )
-        
-        self._allow_blank = allow_blank
-        
-        InitialiseControls()
-        
-        PopulateControls()
-        
-        ArrangeControls()
-        
-    
-    def _CheckText( self ):
-        
-        if not self._allow_blank:
-            
-            if self._text.GetValue() == '': self._ok.Disable()
-            else: self._ok.Enable()
-            
-        
-    
-    def EventChar( self, event ):
-        
-        wx.CallAfter( self._CheckText )
-        
-        event.Skip()
-        
-    
-    def EventEnter( self, event ):
-        
-        if self._text.GetValue() != '': self.EndModal( wx.ID_OK )
-        
-    
-    def GetValue( self ): return self._text.GetValue()
-    
+	
+	def __init__( self, parent, message, default = '', allow_blank = False ):
+		
+		def InitialiseControls():
+			
+			self._text = wx.TextCtrl( self, style = wx.TE_PROCESS_ENTER )
+			self._text.Bind( wx.EVT_CHAR, self.EventChar )
+			self._text.Bind( wx.EVT_TEXT_ENTER, self.EventEnter )
+			
+			self._ok = wx.Button( self, id = wx.ID_OK, label = 'ok' )
+			self._ok.SetForegroundColour( ( 0, 128, 0 ) )
+			
+			self._cancel = wx.Button( self, id = wx.ID_CANCEL, label = 'cancel' )
+			self._cancel.SetForegroundColour( ( 128, 0, 0 ) )
+			
+	
+		def PopulateControls():
+			
+			self._text.SetValue( default )
+			
+			self._CheckText()
+			
+		
+		def ArrangeControls():
+			
+			hbox = wx.BoxSizer( wx.HORIZONTAL )
+			
+			hbox.AddF( self._ok, FLAGS_SMALL_INDENT )
+			hbox.AddF( self._cancel, FLAGS_SMALL_INDENT )
+			
+			st_message = wx.StaticText( self, label = message )
+			
+			st_message.Wrap( 480 )
+			
+			vbox = wx.BoxSizer( wx.VERTICAL )
+			
+			vbox.AddF( st_message, FLAGS_BIG_INDENT )
+			vbox.AddF( self._text, FLAGS_EXPAND_BOTH_WAYS )
+			vbox.AddF( hbox, FLAGS_BUTTON_SIZER )
+			
+			self.SetSizer( vbox )
+			
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			x = max( x, 250 )
+			
+			self.SetInitialSize( ( x, y ) )
+			
+		
+		Dialog.__init__( self, parent, 'enter text', position = 'center' )
+		
+		self._allow_blank = allow_blank
+		
+		InitialiseControls()
+		
+		PopulateControls()
+		
+		ArrangeControls()
+		
+	
+	def _CheckText( self ):
+		
+		if not self._allow_blank:
+			
+			if self._text.GetValue() == '': self._ok.Disable()
+			else: self._ok.Enable()
+			
+		
+	
+	def EventChar( self, event ):
+		
+		wx.CallAfter( self._CheckText )
+		
+		event.Skip()
+		
+	
+	def EventEnter( self, event ):
+		
+		if self._text.GetValue() != '': self.EndModal( wx.ID_OK )
+		
+	
+	def GetValue( self ): return self._text.GetValue()
+	
 class DialogYesNo( Dialog ):
-    
-    def __init__( self, parent, message, title = 'Are you sure?', yes_label = 'yes', no_label = 'no' ):
-        
-        def InitialiseControls():
-            
-            self._yes = wx.Button( self, id = wx.ID_YES, label = yes_label )
-            self._yes.SetForegroundColour( ( 0, 128, 0 ) )
-            
-            self._no = wx.Button( self, id = wx.ID_NO, label = no_label )
-            self._no.SetForegroundColour( ( 128, 0, 0 ) )
-            
-            self._hidden_cancel = wx.Button( self, id = wx.ID_CANCEL, size = ( 0, 0 ) )
-            
-    
-        def PopulateControls():
-            
-            pass
-            
-        
-        def ArrangeControls():
-            
-            hbox = wx.BoxSizer( wx.HORIZONTAL )
-            
-            hbox.AddF( self._yes, FLAGS_SMALL_INDENT )
-            hbox.AddF( self._no, FLAGS_SMALL_INDENT )
-            
-            vbox = wx.BoxSizer( wx.VERTICAL )
-            
-            text = wx.StaticText( self, label = message )
-            
-            text.Wrap( 480 )
-            
-            vbox.AddF( text, FLAGS_BIG_INDENT )
-            vbox.AddF( hbox, FLAGS_BUTTON_SIZER )
-            
-            self.SetSizer( vbox )
-            
-            ( x, y ) = self.GetEffectiveMinSize()
-            
-            self.SetInitialSize( ( x, y ) )
-            
-        
-        Dialog.__init__( self, parent, title, position = 'center' )
-        
-        InitialiseControls()
-        
-        PopulateControls()
-        
-        ArrangeControls()
-        
-        self.Bind( wx.EVT_CHAR_HOOK, self.EventCharHook )
-        
-        wx.CallAfter( self._yes.SetFocus )
-        
-    
-    def EventCharHook( self, event ):
-        
-        if event.KeyCode == wx.WXK_ESCAPE: self.EndModal( wx.ID_NO )
-        else: event.Skip()
-        
-    
+	
+	def __init__( self, parent, message, title = 'Are you sure?', yes_label = 'yes', no_label = 'no' ):
+		
+		def InitialiseControls():
+			
+			self._yes = wx.Button( self, id = wx.ID_YES, label = yes_label )
+			self._yes.SetForegroundColour( ( 0, 128, 0 ) )
+			
+			self._no = wx.Button( self, id = wx.ID_NO, label = no_label )
+			self._no.SetForegroundColour( ( 128, 0, 0 ) )
+			
+			self._hidden_cancel = wx.Button( self, id = wx.ID_CANCEL, size = ( 0, 0 ) )
+			
+	
+		def PopulateControls():
+			
+			pass
+			
+		
+		def ArrangeControls():
+			
+			hbox = wx.BoxSizer( wx.HORIZONTAL )
+			
+			hbox.AddF( self._yes, FLAGS_SMALL_INDENT )
+			hbox.AddF( self._no, FLAGS_SMALL_INDENT )
+			
+			vbox = wx.BoxSizer( wx.VERTICAL )
+			
+			text = wx.StaticText( self, label = message )
+			
+			text.Wrap( 480 )
+			
+			vbox.AddF( text, FLAGS_BIG_INDENT )
+			vbox.AddF( hbox, FLAGS_BUTTON_SIZER )
+			
+			self.SetSizer( vbox )
+			
+			( x, y ) = self.GetEffectiveMinSize()
+			
+			self.SetInitialSize( ( x, y ) )
+			
+		
+		Dialog.__init__( self, parent, title, position = 'center' )
+		
+		InitialiseControls()
+		
+		PopulateControls()
+		
+		ArrangeControls()
+		
+		self.Bind( wx.EVT_CHAR_HOOK, self.EventCharHook )
+		
+		wx.CallAfter( self._yes.SetFocus )
+		
+	
+	def EventCharHook( self, event ):
+		
+		if event.KeyCode == wx.WXK_ESCAPE: self.EndModal( wx.ID_NO )
+		else: event.Skip()
+		
+	

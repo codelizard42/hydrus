@@ -120,7 +120,7 @@ WIN32 is still required for the locale module.
  * _Py_STRINGIZE(_MSC_VER) expands to
  * _Py_STRINGIZE1((_MSC_VER)) expands to
  * _Py_STRINGIZE2(_MSC_VER) but as this call is the result of token-pasting
- *      it's scanned again for macros and so further expands to (under MSVC 6)
+ *	  it's scanned again for macros and so further expands to (under MSVC 6)
  * _Py_STRINGIZE2(1200) which then expands to
  * "1200"
  */
