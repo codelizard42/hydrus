@@ -19,10 +19,6 @@ import traceback
 import wx
 import cStringIO
 
-# Mime
-
-#magic_mime = magic.Magic( HC.STATIC_DIR + os.path.sep + 'magic.mime', HC.STATIC_DIR + os.path.sep + 'magic.mime.cache' )
-
 def GenerateThumbnail( path, dimensions = HC.UNSCALED_THUMBNAIL_DIMENSIONS ):
 	
 	mime = GetMime( path )
