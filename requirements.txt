@@ -1,0 +1,20 @@
+# Requirements for Hydrus for installation through pip (from http://hydrusnetwork.github.io/hydrus/help/running_from_source.html at hydrus version 199)
+# TODO: Add minimum/maximum usable versions in PEP 440 style ( https://www.python.org/dev/peps/pep-0440/#version-specifiers )
+beautifulsoup4
+hsaudiotag
+lxml
+lz4
+mp3play
+nose
+numpy
+pafy
+Pillow
+psutil
+pycrypto
+PyPDF2
+PySocks
+python-potr
+PyYAML
+requests
+Send2Trash
+twisted
